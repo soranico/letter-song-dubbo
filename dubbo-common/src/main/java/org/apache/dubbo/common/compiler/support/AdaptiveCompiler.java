@@ -28,6 +28,14 @@ public class AdaptiveCompiler implements Compiler {
 
     private static volatile String DEFAULT_COMPILER;
 
+    /**
+     *
+     * dubbo中的依赖注入
+     * 默认会找 set开头的方法
+     * 于此相对 spring利用的是
+     * Java内省查找的是 writeMethod
+     *
+     */
     public static void setDefaultCompiler(String compiler) {
         DEFAULT_COMPILER = compiler;
     }
@@ -40,6 +48,20 @@ public class AdaptiveCompiler implements Compiler {
         if (name != null && name.length() > 0) {
             compiler = loader.getExtension(name);
         } else {
+            /**
+             *
+             * 默认实现为
+             * @see JavassistCompiler
+             * 因为在 Compiler 接口中 的 @SPI 配置
+             * @see Compiler
+             * 的为 javassist
+             * 在 加载类时 会
+             * org.apache.dubbo.common.compiler.Compiler
+             * 里面会将 javassist 的 配置设置为默认
+             *
+             * 另一种实现为 jdk动态代理
+             *
+             */
             compiler = loader.getDefaultExtension();
         }
         return compiler.compile(code, classLoader);

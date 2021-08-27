@@ -164,6 +164,14 @@ public final class ReflectUtils {
     }
 
     public static boolean isPrimitive(Class<?> cls) {
+        /**
+         * 如果注入的类型是
+         * 基本类型对应的包装类
+         * 以及 String Date Number等
+         * 这几个类
+         * 那么会被视为原始类型
+         * 不做处理
+         */
         return cls.isPrimitive() || cls == String.class || cls == Boolean.class || cls == Character.class
                 || Number.class.isAssignableFrom(cls) || Date.class.isAssignableFrom(cls);
     }
