@@ -159,7 +159,7 @@ public class DubboBootstrap {
     private final Lock destroyLock = new ReentrantLock();
 
     private final ExecutorService executorService = newSingleThreadExecutor();
-
+    // 从配置中获取线程池
     private final ExecutorRepository executorRepository = getExtensionLoader(ExecutorRepository.class).getDefaultExtension();
     ;
 
@@ -252,7 +252,7 @@ public class DubboBootstrap {
     private DubboBootstrap() {
         configManager = ApplicationModel.getConfigManager();
         environment = ApplicationModel.getEnvironment();
-
+        // 注册停止回调
         DubboShutdownHook.getDubboShutdownHook().register();
         ShutdownHookCallbacks.INSTANCE.addCallback(DubboBootstrap.this::destroy);
     }

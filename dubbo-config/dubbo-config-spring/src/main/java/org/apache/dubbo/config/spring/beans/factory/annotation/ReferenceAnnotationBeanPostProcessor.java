@@ -124,11 +124,21 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
         String[] beanNames = beanFactory.getBeanDefinitionNames();
         for (String beanName : beanNames) {
             Class<?> beanType;
+            /**
+             * 是否为FactoryBean
+             */
             if (beanFactory.isFactoryBean(beanName)){
                 BeanDefinition beanDefinition = beanFactory.getBeanDefinition(beanName);
+                /**
+                 * 如果是ReferenceBean直接忽略
+                 */
                 if (isReferenceBean(beanDefinition)) {
                     continue;
                 }
+                /**
+                 * 被@DubboReference标记
+                 * 是用@Bean引入的
+                 */
                 if (isAnnotatedReferenceBean(beanDefinition)) {
                     // process @DubboReference at java-config @bean method
                     processReferenceAnnotatedBeanDefinition(beanName, (AnnotatedBeanDefinition) beanDefinition);
@@ -145,6 +155,9 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
                 beanType = beanFactory.getType(beanName);
             }
             if (beanType != null) {
+                /**
+                 * 查找需要注入的属性和方法
+                 */
                 AnnotatedInjectionMetadata metadata = findInjectionMetadata(beanName, beanType, null);
                 try {
                     prepareInjection(metadata);
@@ -219,6 +232,10 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
         // get dubbo reference annotation attributes
         Map<String, Object> annotationAttributes = null;
         // try all dubbo reference annotation types
+        /**
+         * 依次处理注解
+         *
+         */
         for (Class<? extends Annotation> annotationType : getAnnotationTypes()) {
             if (factoryMethodMetadata.isAnnotated(annotationType.getName())) {
                 // Since Spring 5.2
@@ -317,15 +334,20 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
         try {
             //find and registry bean definition for @DubboReference/@Reference
             for (AnnotatedFieldElement fieldElement : metadata.getFieldElements()) {
+                /**
+                 * 已经处理过直接忽略
+                 */
                 if (fieldElement.injectedObject != null) {
                     continue;
                 }
+                // 属性的类型
                 Class<?> injectedType = fieldElement.field.getType();
                 AnnotationAttributes attributes = fieldElement.attributes;
                 String referenceBeanName = registerReferenceBean(fieldElement.getPropertyName(), injectedType, attributes, fieldElement.field);
 
                 //associate fieldElement and reference bean
                 fieldElement.injectedObject = referenceBeanName;
+                // 缓存注入属性和beanName的关系
                 injectedFieldReferenceBeanCache.put(fieldElement, referenceBeanName);
 
             }
@@ -351,6 +373,7 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
 
         boolean renameable = true;
         // referenceBeanName
+        // 这种情况
         String referenceBeanName = getAttribute(attributes, ReferenceAttributes.ID);
         if (hasText(referenceBeanName)) {
             renameable = false;
@@ -369,7 +392,7 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
             throw new BeanCreationException("Need to specify the 'interfaceName' or 'interfaceClass' attribute of '@DubboReference' if enable generic. "+checkLocation);
         }
 
-        // check reference key
+        // check reference key ReferenceBean:group(可能存在)/interface:version(可能存在）
         String referenceKey = ReferenceBeanSupport.generateReferenceKey(attributes, applicationContext);
 
         // find reference bean name by reference key

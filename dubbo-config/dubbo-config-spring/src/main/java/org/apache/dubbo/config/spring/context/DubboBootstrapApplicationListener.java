@@ -24,6 +24,7 @@ import org.apache.dubbo.config.bootstrap.DubboBootstrap;
 
 import org.apache.dubbo.config.spring.context.event.DubboAnnotationInitedEvent;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ApplicationEvent;
@@ -31,7 +32,9 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ApplicationContextEvent;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.core.Ordered;
+import org.springframework.core.type.AnnotationMetadata;
 
 import static org.springframework.util.ObjectUtils.nullSafeEquals;
 
@@ -60,6 +63,10 @@ public class DubboBootstrapApplicationListener implements ApplicationListener, A
     }
 
     private DubboBootstrap initBootstrap() {
+        /**
+         * 里面初始化了一个配置管理器
+         * @see DubboBootstrap#configManager
+         */
         DubboBootstrap dubboBootstrap = DubboBootstrap.getInstance();
         if (dubboBootstrap.getTakeoverMode() != BootstrapTakeoverMode.MANUAL) {
             dubboBootstrap.setTakeoverMode(BootstrapTakeoverMode.SPRING);
@@ -70,6 +77,9 @@ public class DubboBootstrapApplicationListener implements ApplicationListener, A
     @Override
     public void onApplicationEvent(ApplicationEvent event) {
         if (isOriginalEventSource(event)) {
+            /**
+             * 这个事件会在spring创建bean之前调用
+             */
             if (event instanceof DubboAnnotationInitedEvent) {
                 // This event will be notified at AbstractApplicationContext.registerListeners(),
                 // init dubbo config beans before spring singleton beans
@@ -82,6 +92,10 @@ public class DubboBootstrapApplicationListener implements ApplicationListener, A
 
     private void initDubboConfigBeans() {
         // load DubboConfigBeanInitializer to init config beans
+        /**
+         * 这个BD是通过Enable注解注册进来的
+         * @see org.apache.dubbo.config.spring.context.annotation.DubboConfigConfigurationRegistrar#registerBeanDefinitions(AnnotationMetadata, BeanDefinitionRegistry) 
+         */
         if (applicationContext.containsBean(DubboConfigBeanInitializer.BEAN_NAME)) {
             applicationContext.getBean(DubboConfigBeanInitializer.BEAN_NAME, DubboConfigBeanInitializer.class);
         } else {
@@ -89,6 +103,10 @@ public class DubboBootstrapApplicationListener implements ApplicationListener, A
         }
 
         // All infrastructure config beans are loaded, initialize dubbo here
+        /**
+         * 这个时候dubbo的配置都已经创建完成
+         * 可以进行dubbo的初始化
+         */
         DubboBootstrap.getInstance().initialize();
     }
 
@@ -147,9 +165,19 @@ public class DubboBootstrapApplicationListener implements ApplicationListener, A
 
     private void checkCallStackAndInit() {
         // check call stack whether contains org.springframework.context.support.AbstractApplicationContext.registerListeners()
+        /**
+         * 通过异常获取调用栈
+         */
         Exception exception = new Exception();
         StackTraceElement[] stackTrace = exception.getStackTrace();
         boolean found = false;
+        /**
+         * 如果是通过
+         * @see AbstractApplicationContext#registerListeners()
+         * 调用的 说明需要发布早期事件 对于Dubbo而言是
+         * @see DubboAnnotationInitedEvent
+         * 在创建bean之前发布
+         */
         for (StackTraceElement frame : stackTrace) {
             if (frame.getMethodName().equals("registerListeners") && frame.getClassName().endsWith("AbstractApplicationContext")) {
                 found = true;
@@ -158,6 +186,9 @@ public class DubboBootstrapApplicationListener implements ApplicationListener, A
         }
         if (found) {
             // init config beans here, compatible with spring 3.x/4.1.x
+            /**
+             * 初始化Dubbo的配置bean
+             */
             initDubboConfigBeans();
         } else {
             logger.warn("DubboBootstrapApplicationListener initialization is unexpected, " +

@@ -8,7 +8,8 @@ public class KanoSpi {
 
     public static void main(String[] args) {
 //        testProtocolAdaptive();
-        testProtocolDefault();
+//        testProtocolDefault();
+        testProtocolExtension();
     }
 
     public static void testProtocolAdaptive(){
@@ -20,6 +21,15 @@ public class KanoSpi {
         Protocol defaultExtension = ExtensionLoader.getExtensionLoader(Protocol.class).getDefaultExtension();
         System.out.println("default = " + defaultExtension);
     }
+
+
+    public static void testProtocolExtension(){
+        Protocol defaultExtension = ExtensionLoader.getExtensionLoader(Protocol.class).getExtension("dubbo");
+        System.out.println("default = " + defaultExtension);
+    }
+
+
+
 
 
 

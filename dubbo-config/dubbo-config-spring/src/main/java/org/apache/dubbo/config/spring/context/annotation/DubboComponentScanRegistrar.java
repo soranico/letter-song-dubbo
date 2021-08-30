@@ -71,6 +71,10 @@ public class DubboComponentScanRegistrar implements ImportBeanDefinitionRegistra
     private void registerServiceAnnotationPostProcessor(Set<String> packagesToScan, BeanDefinitionRegistry registry) {
 
         BeanDefinitionBuilder builder = rootBeanDefinition(ServiceAnnotationPostProcessor.class);
+        /**
+         * 添加构造方法参数
+         * @see ServiceAnnotationPostProcessor#ServiceAnnotationPostProcessor(Set) 
+         */
         builder.addConstructorArgValue(packagesToScan);
         builder.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
         AbstractBeanDefinition beanDefinition = builder.getBeanDefinition();

@@ -512,6 +512,9 @@ public class ExtensionLoader<T> {
         if (StringUtils.isEmpty(name)) {
             throw new IllegalArgumentException("Extension name == null");
         }
+        /**
+         * 如果是true则使用默认的
+         */
         if ("true".equals(name)) {
             return getDefaultExtension();
         }
@@ -522,7 +525,7 @@ public class ExtensionLoader<T> {
                 instance = holder.get();
                 if (instance == null) {
                     /**
-                     *
+                     * 创建实例
                      */
                     instance = createExtension(name, wrap);
                     holder.set(instance);
@@ -749,10 +752,14 @@ public class ExtensionLoader<T> {
                  * 全局缓存
                  */
                 EXTENSION_INSTANCES.putIfAbsent(clazz, clazz.getDeclaredConstructor().newInstance());
+                /**
+                 * 这个是原始的对象
+                 */
                 instance = (T) EXTENSION_INSTANCES.get(clazz);
             }
             /**
              * 依赖注入
+             * 只会注入接口并且被@SPI标记的
              */
             injectExtension(instance);
 
@@ -764,8 +771,8 @@ public class ExtensionLoader<T> {
                  *
                  * 如果存在 Wrapper
                  * 那么需要应用
-                 * 并且逆序
-                 *
+                 * 排序后逆序
+                 * 从大到小
                  */
                 if (cachedWrapperClasses != null) {
                     wrapperClassesList.addAll(cachedWrapperClasses);
@@ -776,8 +783,19 @@ public class ExtensionLoader<T> {
                 if (CollectionUtils.isNotEmpty(wrapperClassesList)) {
                     for (Class<?> wrapperClass : wrapperClassesList) {
                         Wrapper wrapper = wrapperClass.getAnnotation(Wrapper.class);
+                        /**
+                         * 没有被@Wrapper标记
+                         * 或者
+                         * 被标记但当前扩展可以匹配并且不在排除集合中
+                         */
                         if (wrapper == null
                             || (ArrayUtils.contains(wrapper.matches(), name) && !ArrayUtils.contains(wrapper.mismatches(), name))) {
+                            /**
+                             * 将原始对象传入Wrapper对象中
+                             * 并更新对象引用
+                             * 此时会构成一个调用链
+                             * 代理2 - 代理1 - 原始对象
+                             */
                             instance = injectExtension((T) wrapperClass.getConstructor(type).newInstance(instance));
                         }
                     }

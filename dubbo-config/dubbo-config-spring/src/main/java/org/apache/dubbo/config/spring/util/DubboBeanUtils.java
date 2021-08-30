@@ -58,12 +58,27 @@ public interface DubboBeanUtils {
      * @see DubboBootstrapApplicationListener
      */
     static void registerCommonBeans(BeanDefinitionRegistry registry) {
-
+        /**
+         * 注册一个处理服务提供者的BD
+         * @see ServicePackagesHolder
+         */
         registerInfrastructureBean(registry, ServicePackagesHolder.BEAN_NAME, ServicePackagesHolder.class);
 
+        /**
+         *  注册一个处理服务消费者的BD
+         * @see ReferenceBeanManager
+         *
+         */
         registerInfrastructureBean(registry, ReferenceBeanManager.BEAN_NAME, ReferenceBeanManager.class);
 
         // Since 2.5.7 Register @Reference Annotation Bean Processor as an infrastructure Bean
+        /**
+         * 注册处理@Reference的BPP
+         * @see ReferenceAnnotationBeanPostProcessor
+         * 实现了 MergedBeanDefinitionPostProcessor 的 postProcessMergedBeanDefinition
+         * @see org.springframework.beans.factory.support.MergedBeanDefinitionPostProcessor#postProcessMergedBeanDefinition(RootBeanDefinition, Class, String)
+         * 处理被注解标记的属性和方法
+         */
         registerInfrastructureBean(registry, ReferenceAnnotationBeanPostProcessor.BEAN_NAME,
                 ReferenceAnnotationBeanPostProcessor.class);
 
@@ -73,17 +88,35 @@ public interface DubboBeanUtils {
                 DubboConfigAliasPostProcessor.class);
 
         // Since 2.7.4 Register DubboBootstrapApplicationListener as an infrastructure Bean
+        /**
+         * 注册一个监听器（观察者）
+         * 用于监听spring和dubbo的事件
+         */
         registerInfrastructureBean(registry, DubboBootstrapApplicationListener.BEAN_NAME,
                 DubboBootstrapApplicationListener.class);
 
         // Since 2.7.6 Register DubboConfigDefaultPropertyValueBeanPostProcessor as an infrastructure Bean
+        /**
+         *  TODO 初始化配置？
+         *
+         */
         registerInfrastructureBean(registry, DubboConfigDefaultPropertyValueBeanPostProcessor.BEAN_NAME,
                 DubboConfigDefaultPropertyValueBeanPostProcessor.class);
 
         // Dubbo config initializer
+        /**
+         * 注册一个在创建bean之前初始化Dubbo配置的BD
+         */
         registerInfrastructureBean(registry, DubboConfigBeanInitializer.BEAN_NAME, DubboConfigBeanInitializer.class);
 
         // register infra bean if not exists later
+        /**
+         * 这里注册一个BFPP
+         * 让一些BPP可以首先实例化
+         * 并且应用到后续在创建bean之前的BPP的初始化时
+         * @see org.springframework.context.support.AbstractApplicationContext#registerBeanPostProcessors(ConfigurableListableBeanFactory)
+         * 就可以应用
+         */
         registerInfrastructureBean(registry, DubboInfraBeanRegisterPostProcessor.BEAN_NAME, DubboInfraBeanRegisterPostProcessor.class);
     }
 

@@ -53,6 +53,7 @@ public class ReferenceBeanSupport {
     public static void convertReferenceProps(Map<String, Object> attributes, Class defaultInterfaceClass) {
 
         // interface class
+        // 获取接口名
         String interfaceName = (String) attributes.get(ReferenceAttributes.INTERFACE);
         if (interfaceName == null) {
             interfaceName = (String) attributes.get(ReferenceAttributes.INTERFACE_NAME);
@@ -65,6 +66,7 @@ public class ReferenceBeanSupport {
             interfaceName = defaultInterfaceClass.getName();
         }
         Assert.notEmptyString(interfaceName, "The interface class or name of reference was not found");
+        // 添加到属性集合
         attributes.put(ReferenceAttributes.INTERFACE, interfaceName);
         attributes.remove(ReferenceAttributes.INTERFACE_NAME);
         attributes.remove(ReferenceAttributes.INTERFACE_CLASS);
@@ -73,12 +75,14 @@ public class ReferenceBeanSupport {
         String generic = String.valueOf(defaultInterfaceClass == GenericService.class);
         String oldGeneric = attributes.containsValue(ReferenceAttributes.GENERIC) ?
             String.valueOf(attributes.get(ReferenceAttributes.GENERIC)) : "false";
+        // 是否默认接口
         if (!StringUtils.isEquals(oldGeneric, generic)) {
             attributes.put(ReferenceAttributes.GENERIC, generic);
         }
 
         //Specially convert @DubboReference attribute name/value to ReferenceConfig property
         // String[] registry => String registryIds
+        // 注册地址
         String[] registryIds = (String[]) attributes.get(ReferenceAttributes.REGISTRY);
         if (registryIds != null) {
             String value = join((String[]) registryIds, ",");
