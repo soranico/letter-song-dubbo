@@ -39,11 +39,7 @@ import org.springframework.beans.factory.config.BeanDefinitionHolder;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.config.SingletonBeanRegistry;
-import org.springframework.beans.factory.support.AbstractBeanDefinition;
-import org.springframework.beans.factory.support.BeanDefinitionBuilder;
-import org.springframework.beans.factory.support.BeanDefinitionRegistry;
-import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
-import org.springframework.beans.factory.support.BeanNameGenerator;
+import org.springframework.beans.factory.support.*;
 import org.springframework.beans.factory.xml.BeanDefinitionParser;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -132,6 +128,10 @@ public class ServiceAnnotationPostProcessor implements BeanDefinitionRegistryPos
     }
 
     public ServiceAnnotationPostProcessor(Set<String> packagesToScan) {
+        /**
+         * 这个是在自动装配的时候设置进来的
+         * @see org.apache.dubbo.spring.boot.autoconfigure.DubboAutoConfiguration#serviceAnnotationBeanProcessor(java.util.Set)
+         */
         this.packagesToScan = packagesToScan;
     }
 
@@ -140,7 +140,12 @@ public class ServiceAnnotationPostProcessor implements BeanDefinitionRegistryPos
         this.registry = registry;
 
         Set<String> resolvedPackagesToScan = resolvePackagesToScan(packagesToScan);
-
+        /**
+         * 扫描的包路径将符合的类变为BD
+         * 注册的spring容器
+         * @see ServiceAnnotationPostProcessor#scanServiceBeans(Set, BeanDefinitionRegistry)
+         *
+         */
         if (!CollectionUtils.isEmpty(resolvedPackagesToScan)) {
             scanServiceBeans(resolvedPackagesToScan, registry);
         } else {
@@ -159,11 +164,27 @@ public class ServiceAnnotationPostProcessor implements BeanDefinitionRegistryPos
      */
     private void scanServiceBeans(Set<String> packagesToScan, BeanDefinitionRegistry registry) {
 
+        /**
+         * 这个和mybatis是同一个原理
+         * 都是继承
+         * @see ClassPathBeanDefinitionScanner 调用父类去扫描
+         * 因为 spring的扫描用的是ASM技术不会进行真实的类加载可以避免一些类的初始化方法调用
+         */
         DubboClassPathBeanDefinitionScanner scanner =
                 new DubboClassPathBeanDefinitionScanner(registry, environment, resourceLoader);
 
         BeanNameGenerator beanNameGenerator = resolveBeanNameGenerator(registry);
         scanner.setBeanNameGenerator(beanNameGenerator);
+        /**
+         * 添加扫描包含的注解信息
+         * @see ServiceAnnotationPostProcessor#serviceAnnotationTypes
+         *
+         * @see DubboService
+         *
+         * 已废弃
+         * @see Service
+         * @see com.alibaba.dubbo.config.annotation.Service
+         */
         for (Class<? extends Annotation> annotationType : serviceAnnotationTypes) {
             scanner.addIncludeFilter(new AnnotationTypeFilter(annotationType));
         }
@@ -174,6 +195,9 @@ public class ServiceAnnotationPostProcessor implements BeanDefinitionRegistryPos
         for (String packageToScan : packagesToScan) {
 
             // avoid duplicated scans
+            /**
+             * 如果包路径已经扫描了那么不再扫描
+             */
             if (servicePackagesHolder.isPackageScanned(packageToScan)) {
                 if (logger.isInfoEnabled()) {
                     logger.info("Ignore package who has already bean scanned: " + packageToScan);
@@ -185,6 +209,10 @@ public class ServiceAnnotationPostProcessor implements BeanDefinitionRegistryPos
             scanner.scan(packageToScan);
 
             // Finds all BeanDefinitionHolders of @Service whether @ComponentScan scans or not.
+            /**
+             * 父类扫描出来的每个BD转为BDHolder
+             * @see ClassPathBeanDefinitionScanner#findCandidateComponents(String) 
+             */
             Set<BeanDefinitionHolder> beanDefinitionHolders =
                     findServiceBeanDefinitionHolders(scanner, packageToScan, registry, beanNameGenerator);
 
@@ -196,7 +224,10 @@ public class ServiceAnnotationPostProcessor implements BeanDefinitionRegistryPos
                     }
                     logger.info("Found " + beanDefinitionHolders.size() + " classes annotated by Dubbo @Service under package [" + packageToScan + "]: " + serviceClasses);
                 }
-
+                /**
+                 * 处理
+                 * @see ServiceAnnotationPostProcessor#processScannedBeanDefinition(BeanDefinitionHolder, BeanDefinitionRegistry, DubboClassPathBeanDefinitionScanner)
+                 */
                 for (BeanDefinitionHolder beanDefinitionHolder : beanDefinitionHolders) {
                     processScannedBeanDefinition(beanDefinitionHolder, registry, scanner);
                     servicePackagesHolder.addScannedClass(beanDefinitionHolder.getBeanDefinition().getBeanClassName());
@@ -265,7 +296,7 @@ public class ServiceAnnotationPostProcessor implements BeanDefinitionRegistryPos
     private Set<BeanDefinitionHolder> findServiceBeanDefinitionHolders(
             ClassPathBeanDefinitionScanner scanner, String packageToScan, BeanDefinitionRegistry registry,
             BeanNameGenerator beanNameGenerator) {
-
+        
         Set<BeanDefinition> beanDefinitions = scanner.findCandidateComponents(packageToScan);
 
         Set<BeanDefinitionHolder> beanDefinitionHolders = new LinkedHashSet<>(beanDefinitions.size());
@@ -293,7 +324,9 @@ public class ServiceAnnotationPostProcessor implements BeanDefinitionRegistryPos
      */
     private void processScannedBeanDefinition(BeanDefinitionHolder beanDefinitionHolder, BeanDefinitionRegistry registry,
                                               DubboClassPathBeanDefinitionScanner scanner) {
-
+        /**
+         * bean对应的类
+         */
         Class<?> beanClass = resolveClass(beanDefinitionHolder);
 
         Annotation service = findServiceAnnotation(beanClass);
@@ -301,13 +334,27 @@ public class ServiceAnnotationPostProcessor implements BeanDefinitionRegistryPos
         // The attributes of @Service annotation
         Map<String, Object> serviceAnnotationAttributes = AnnotationUtils.getAttributes(service, true);
 
+        /**
+         * 获取当前对应类的接口
+         * 可以是实现
+         * @see org.apache.dubbo.rpc.service.GenericService 这个是dubbo提供的通用接口
+         */
         String serviceInterface = resolveInterfaceName(serviceAnnotationAttributes, beanClass);
-
+        
         String annotatedServiceBeanName = beanDefinitionHolder.getBeanName();
 
         // ServiceBean Bean name
+        /**
+         * 生成 dubbo 的beanName
+         * 包括分组和版本
+         * @see ServiceAnnotationPostProcessor#generateServiceBeanName(Map, String)
+         */
         String beanName = generateServiceBeanName(serviceAnnotationAttributes, serviceInterface);
 
+        /**
+         * 构建最终注册的BD
+         * @see ServiceAnnotationPostProcessor#buildServiceBeanDefinition(Map, String, String)
+         */
         AbstractBeanDefinition serviceBeanDefinition =
                 buildServiceBeanDefinition(serviceAnnotationAttributes, serviceInterface, annotatedServiceBeanName);
 
@@ -393,20 +440,49 @@ public class ServiceAnnotationPostProcessor implements BeanDefinitionRegistryPos
 
         MutablePropertyValues propertyValues = beanDefinition.getPropertyValues();
 
+        /**
+         * 添加属性值
+         */
         String[] ignoreAttributeNames = of("provider", "monitor", "application", "module", "registry", "protocol",
                 "interface", "interfaceName", "parameters");
 
+        /**
+         * 第一个是注解的属性
+         * @see DubboService
+         * 首先会对注解里面的属性进行解析
+         * 如果这个属性在忽略集合中那么会过滤掉这个属性(不会添加到属性值里面也不会解析)
+         *
+         */
         propertyValues.addPropertyValues(new AnnotationPropertyValuesAdapter(serviceAnnotationAttributes, environment, ignoreAttributeNames));
 
         //set config id, for ConfigManager cache key
         //builder.addPropertyValue("id", beanName);
         // References "ref" property to annotated-@Service Bean
+        /**
+         * 这里添加的是一个引用
+         * @see org.springframework.beans.factory.config.RuntimeBeanReference
+         *
+         * 因为指定创建 ServiceBean 的时候需要属性值 真实bean的引用而此时 真实bean还没有创建
+         * 因此需要表示这个值
+         * @see org.apache.dubbo.config.ServiceConfigBase#ref
+         * 会在属性注入后解析并设置真实值
+         * @see AbstractAutowireCapableBeanFactory#applyPropertyValues(java.lang.String, org.springframework.beans.factory.config.BeanDefinition, org.springframework.beans.BeanWrapper, org.springframework.beans.PropertyValues)
+         *
+         */
         addPropertyReference(builder, "ref", refServiceBeanName);
         // Set interface
         builder.addPropertyValue("interface", serviceInterface);
         // Convert parameters into map
+        /**
+         * @see DubboService#parameters()
+         * 设置 服务的参数
+         */
         builder.addPropertyValue("parameters", DubboAnnotationUtils.convertParameters((String[]) serviceAnnotationAttributes.get("parameters")));
         // Add methods parameters
+        /**
+         * 设置方法
+         * @see DubboService#methods()
+         */
         List<MethodConfig> methodConfigs = convertMethodConfigs(serviceAnnotationAttributes.get("methods"));
         if (!methodConfigs.isEmpty()) {
             builder.addPropertyValue("methods", methodConfigs);
@@ -426,6 +502,7 @@ public class ServiceAnnotationPostProcessor implements BeanDefinitionRegistryPos
         }
 
         // Convert protocol[] to protocolIds
+
         String[] protocolConfigIds = (String[]) serviceAnnotationAttributes.get("protocol");
         if (protocolConfigIds != null && protocolConfigIds.length > 0) {
             resolveStringArray(protocolConfigIds);
@@ -474,6 +551,9 @@ public class ServiceAnnotationPostProcessor implements BeanDefinitionRegistryPos
 
     private void addPropertyReference(BeanDefinitionBuilder builder, String propertyName, String beanName) {
         String resolvedBeanName = environment.resolvePlaceholders(beanName);
+        /**
+         * 这个resolveBeanName是原始生成的bean的名字
+         */
         builder.addPropertyReference(propertyName, resolvedBeanName);
     }
 

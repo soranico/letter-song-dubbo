@@ -40,6 +40,9 @@ public abstract class AbstractEndpoint extends AbstractPeer implements Resetable
 
     public AbstractEndpoint(URL url, ChannelHandler handler) {
         super(url, handler);
+        /**
+         * 解码格式
+         */
         this.codec = getChannelCodec(url);
         this.connectTimeout = url.getPositiveParameter(Constants.CONNECT_TIMEOUT_KEY, Constants.DEFAULT_CONNECT_TIMEOUT);
     }

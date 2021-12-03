@@ -90,6 +90,9 @@ public class MockClusterInvoker<T> implements ClusterInvoker<T> {
         String value = getUrl().getMethodParameter(invocation.getMethodName(), MOCK_KEY, Boolean.FALSE.toString()).trim();
         if (value.length() == 0 || "false".equalsIgnoreCase(value)) {
             //no mock
+            /**
+             * @see org.apache.dubbo.rpc.cluster.support.wrapper.AbstractCluster.ClusterFilterInvoker#invoke(Invocation) 
+             */
             result = this.invoker.invoke(invocation);
         } else if (value.startsWith("force")) {
             if (logger.isWarnEnabled()) {

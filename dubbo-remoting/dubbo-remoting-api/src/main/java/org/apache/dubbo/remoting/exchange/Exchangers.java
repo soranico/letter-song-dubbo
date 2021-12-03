@@ -67,6 +67,10 @@ public class Exchangers {
             throw new IllegalArgumentException("handler == null");
         }
         url = url.addParameterIfAbsent(Constants.CODEC_KEY, "exchange");
+        /**
+         * 获取指定的服务器
+         * @see org.apache.dubbo.remoting.transport.netty4.NettyTransporter#bind(URL, ChannelHandler)
+         */
         return getExchanger(url).bind(url, handler);
     }
 

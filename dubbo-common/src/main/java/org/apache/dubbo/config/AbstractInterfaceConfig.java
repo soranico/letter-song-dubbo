@@ -229,6 +229,10 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
         if (isNative) {
             return Arrays.stream(interfaceClass.getMethods()).map(it -> it.getName()).toArray(String[]::new);
         } else {
+            /**
+             * 此时返回的是原始类的方法
+             * @see Wrapper#invokeMethod(Object, String, Class[], Object[]) 生成Wrap并缓存
+             */
             return Wrapper.getWrapper(interfaceClass).getMethodNames();
         }
     }
@@ -617,6 +621,10 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
 
 
     public List<MethodConfig> getMethods() {
+        /**
+         * 这个注解中的配置
+         * @see org.apache.dubbo.config.annotation.Method
+         */
         return methods;
     }
 

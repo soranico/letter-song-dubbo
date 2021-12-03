@@ -55,9 +55,19 @@ public class DubboComponentScanRegistrar implements ImportBeanDefinitionRegistra
 
         // @since 2.7.6 Register the common beans
         registerCommonBeans(registry);
-
+        /**
+         * 获取需要扫描的包路径
+         * 如果配置没有指定默认扫描当前注解声明所在类的包
+         * @see DubboComponentScan
+         */
         Set<String> packagesToScan = getPackagesToScan(importingClassMetadata);
-
+        /**
+         * 注册扫描路径下类变为BD 的 BDRPP
+         * @see ServiceAnnotationPostProcessor#postProcessBeanDefinitionRegistry(BeanDefinitionRegistry)
+         *
+         * 另外对于 spring boot自动装配而言这个是通过 @Bean 引入的
+         * @see org.apache.dubbo.spring.boot.autoconfigure.DubboAutoConfiguration#serviceAnnotationBeanProcessor(java.util.Set)
+         */
         registerServiceAnnotationPostProcessor(packagesToScan, registry);
     }
 

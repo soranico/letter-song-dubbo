@@ -31,7 +31,7 @@ public class ServiceDiscoveryRegistryFactory extends AbstractRegistryFactory {
         if (UrlUtils.hasServiceDiscoveryRegistryProtocol(url)) {
             String protocol = url.getParameter(REGISTRY_KEY, DEFAULT_REGISTRY);
             url = url.setProtocol(protocol).removeParameter(REGISTRY_KEY);
-        }
+        }// zookeeper://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?REGISTRY_CLUSTER=registryConfig&application=dubbo-demo-annotation-provider&dubbo=2.0.2&interface=org.apache.dubbo.registry.RegistryService&pid=2743
         return new ServiceDiscoveryRegistry(url);
     }
 

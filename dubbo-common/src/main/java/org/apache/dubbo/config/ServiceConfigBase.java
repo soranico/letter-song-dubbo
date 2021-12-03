@@ -51,11 +51,13 @@ public abstract class ServiceConfigBase<T> extends AbstractServiceConfig {
 
     /**
      * The interface class of the exported service
+     * 暴露服务的接口
      */
     protected Class<?> interfaceClass;
 
     /**
      * The reference of the interface implementation
+     * 真实的对象也就是最终调用这个对象的方法进行执行
      */
     protected T ref;
 
@@ -76,6 +78,8 @@ public abstract class ServiceConfigBase<T> extends AbstractServiceConfig {
 
     /**
      * whether it is a GenericService
+     * 是否 GenericService 的实例
+     * @see GenericService
      */
     protected volatile String generic;
 
@@ -196,9 +200,14 @@ public abstract class ServiceConfigBase<T> extends AbstractServiceConfig {
 
     @Override
     protected void preProcessRefresh() {
+        // 空方法
         super.preProcessRefresh();
+
         convertProviderIdToProvider();
         if (provider == null) {
+            /**
+             * 获取没有则新建一个 ProviderConfig
+             */
             provider = ApplicationModel.getConfigManager()
                     .getDefaultProvider()
                     .orElseThrow(() -> new IllegalArgumentException("Default provider is not initialized"));
@@ -405,6 +414,9 @@ public abstract class ServiceConfigBase<T> extends AbstractServiceConfig {
 
     @Parameter(excluded = true, attribute = false)
     public String getUniqueServiceName() {
+        /**
+         * 返回的值 group/接口全路径:版本
+         */
         return interfaceName != null ? URL.buildKey(interfaceName, getGroup(), getVersion()) : null;
     }
 

@@ -55,6 +55,15 @@ public class ListenerRegistryWrapper implements Registry {
     @Override
     public void register(URL url) {
         try {
+            /**
+             * 服务发现
+             * @see org.apache.dubbo.registry.client.ServiceDiscoveryRegistry#register(URL)
+             *
+             * 服务注册到注册中心
+             * @see org.apache.dubbo.registry.zookeeper.ZookeeperRegistry#register(URL)
+             * 首先调用父类的
+             * @see org.apache.dubbo.registry.support.FailbackRegistry#register(URL)
+             */
             registry.register(url);
         } finally {
             if (CollectionUtils.isNotEmpty(listeners) && !UrlUtils.isConsumer(url)) {

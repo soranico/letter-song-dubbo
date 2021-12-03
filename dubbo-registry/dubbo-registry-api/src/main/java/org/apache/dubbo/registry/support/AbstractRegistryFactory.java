@@ -134,7 +134,7 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
         if (null != defaultNopRegistry) {
             return defaultNopRegistry;
         }
-
+        // service-discovery-registry://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?REGISTRY_CLUSTER=registryConfig&application=dubbo-demo-annotation-provider&dubbo=2.0.2&interface=org.apache.dubbo.registry.RegistryService&pid=2743&registry=zookeeper
         url = URLBuilder.from(url)
                 .setPath(RegistryService.class.getName())
                 .addParameter(INTERFACE_KEY, RegistryService.class.getName())

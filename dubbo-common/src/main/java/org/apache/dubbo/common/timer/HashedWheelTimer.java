@@ -555,10 +555,16 @@ public class HashedWheelTimer implements Timer {
         private static final int ST_INIT = 0;
         private static final int ST_CANCELLED = 1;
         private static final int ST_EXPIRED = 2;
+        /**
+         * 原子修改state的值
+         */
         private static final AtomicIntegerFieldUpdater<HashedWheelTimeout> STATE_UPDATER =
                 AtomicIntegerFieldUpdater.newUpdater(HashedWheelTimeout.class, "state");
 
         private final HashedWheelTimer timer;
+        /**
+         * 调度的任务
+         */
         private final TimerTask task;
         private final long deadline;
 

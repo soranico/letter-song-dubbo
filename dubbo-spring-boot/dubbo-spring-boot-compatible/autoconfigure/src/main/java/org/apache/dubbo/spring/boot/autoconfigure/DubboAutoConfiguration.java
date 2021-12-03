@@ -52,6 +52,10 @@ import static org.apache.dubbo.spring.boot.util.DubboUtils.DUBBO_SCAN_PREFIX;
 @EnableDubboConfig
 public class DubboAutoConfiguration {
 
+    DubboAutoConfiguration(){
+
+    }
+
     /**
      * Creates {@link ServiceAnnotationPostProcessor} Bean
      *

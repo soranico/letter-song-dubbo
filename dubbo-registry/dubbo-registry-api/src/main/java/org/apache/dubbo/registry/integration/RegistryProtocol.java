@@ -28,10 +28,7 @@ import org.apache.dubbo.common.utils.CollectionUtils;
 import org.apache.dubbo.common.utils.NamedThreadFactory;
 import org.apache.dubbo.common.utils.StringUtils;
 import org.apache.dubbo.common.utils.UrlUtils;
-import org.apache.dubbo.registry.NotifyListener;
-import org.apache.dubbo.registry.Registry;
-import org.apache.dubbo.registry.RegistryFactory;
-import org.apache.dubbo.registry.RegistryService;
+import org.apache.dubbo.registry.*;
 import org.apache.dubbo.registry.client.ServiceDiscoveryRegistryDirectory;
 import org.apache.dubbo.registry.client.migration.MigrationClusterInvoker;
 import org.apache.dubbo.registry.client.migration.ServiceDiscoveryMigrationInvoker;
@@ -51,6 +48,7 @@ import org.apache.dubbo.rpc.cluster.governance.GovernanceRuleRepository;
 import org.apache.dubbo.rpc.cluster.support.MergeableCluster;
 import org.apache.dubbo.rpc.model.ApplicationModel;
 import org.apache.dubbo.rpc.model.ProviderModel;
+import org.apache.dubbo.rpc.protocol.AbstractProtocol;
 import org.apache.dubbo.rpc.protocol.InvokerWrapper;
 import org.apache.dubbo.rpc.support.ProtocolUtils;
 
@@ -181,6 +179,10 @@ public class RegistryProtocol implements Protocol {
     }
 
     private void register(Registry registry, URL registeredProviderUrl) {
+        /**
+         * 因为存在
+         * @see ListenerRegistryWrapper#register(URL)
+         */
         registry.register(registeredProviderUrl);
     }
 
@@ -194,28 +196,98 @@ public class RegistryProtocol implements Protocol {
 
     @Override
     public <T> Exporter<T> export(final Invoker<T> originInvoker) throws RpcException {
+
+        // service-discovery-registry://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?
+        // REGISTRY_CLUSTER=registryConfig&
+        // application=dubbo-demo-annotation-provider&dubbo=2.0.2&
+        // pid=28590&registry=zookeeper&timestamp=1630488668074
+        /**
+         * 获取注册协议或者服务发现协议
+         * 这个里面的属性值 export = 真实的注册到注册中心的协议 dubbo://
+         */
         URL registryUrl = getRegistryUrl(originInvoker);
+
         // url to export locally
+
+        // dubbo://192.168.106.218:20880/org.apache.dubbo.demo.DemoService?
+        // anyhost=true&application=dubbo-demo-annotation-provider&
+        // bind.ip=192.168.106.218&bind.port=20880&deprecated=false&
+        // dubbo=2.0.2&dynamic=true&generic=false&
+        // interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&
+        // pid=28590&release=&service-name-mapping=true&side=provider&timestamp=1630488668244
+
+        /**
+         * 此时就是从注册协议的属性中拿出
+         * 通信协议 dubbo://
+         * 这个属性值是在里添加的
+         * @see org.apache.dubbo.config.ServiceConfig#exportRemote(org.apache.dubbo.common.URL, java.util.List)
+         */
         URL providerUrl = getProviderUrl(originInvoker);
 
         // Subscribe the override data
         // FIXME When the provider subscribes, it will affect the scene : a certain JVM exposes the service and call
         //  the same service. Because the subscribed is cached key with the name of the service, it causes the
         //  subscription information to cover.
+        /**
+         * 修改协议为 provider
+         * provider://192.168.106.218:20880/org.apache.dubbo.demo.DemoService?
+         * anyhost=true&application=dubbo-demo-annotation-provider&bind.ip=192.168.106.218&bind.port=20880&
+         * category=configurators&check=false(新增的)
+         * &deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=28590&release=&
+         * service-name-mapping=true&side=provider&timestamp=1630488668244
+         */
         final URL overrideSubscribeUrl = getSubscribedOverrideUrl(providerUrl);
+
+        /**
+         * 创建一个观察者监听配置变化
+         * @see OverrideListener
+         */
         final OverrideListener overrideSubscribeListener = new OverrideListener(overrideSubscribeUrl, originInvoker);
         overrideListeners.put(overrideSubscribeUrl, overrideSubscribeListener);
 
+        // dubbo://192.168.106.218:20880/org.apache.dubbo.demo.DemoService?
+        // anyhost=true&application=dubbo-demo-annotation-provider&
+        // bind.ip=192.168.106.218&bind.port=20880&deprecated=false&
+        // dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&
+        // methods=sayHello,sayHelloAsync&pid=28590&release=&
+        // service-name-mapping=true&side=provider&timestamp=1630488668244
+        /**
+         * @see RegistryProtocol#overrideUrlWithConfig(URL, OverrideListener) 重写配置
+         * 如果重写了说明这个配置被动态修改了
+         */
         providerUrl = overrideUrlWithConfig(providerUrl, overrideSubscribeListener);
         //export invoker
+        /**
+         * 此时已经合并完配置可以进行注册到本地
+         * 实际就是放到一个map里面
+         * @see AbstractProtocol#exporterMap
+         * 同时开启了Netty服务
+         *
+         * @see RegistryProtocol#doLocalExport(Invoker, URL)
+         */
         final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker, providerUrl);
 
         // url to registry
+        /**
+         * @see RegistryProtocol#getRegistry(URL)
+         *
+         * 此时返回的是一个
+         * @see ListenerRegistryWrapper
+         */
         final Registry registry = getRegistry(registryUrl);
+        /**
+         * 真正注册到注册的配置
+         */
         final URL registeredProviderUrl = getUrlToRegistry(providerUrl, registryUrl);
 
         // decide if we need to delay publish
         boolean register = providerUrl.getParameter(REGISTER_KEY, true);
+        /**
+         * 进行注册
+         * e.g Zookeeper会创建一个节点
+         * @see RegistryProtocol#register(Registry, URL)
+         * 如果注册失败并且没有配置 check = true 会创建一个重试任务
+         */
         if (register) {
             register(registry, registeredProviderUrl);
         }
@@ -229,7 +301,10 @@ public class RegistryProtocol implements Protocol {
 
         // Deprecated! Subscribe to override rules in 2.6.x or before.
         registry.subscribe(overrideSubscribeUrl, overrideSubscribeListener);
-
+        /**
+         * 注册后如果存在观察者那么会调用观察者处理对应的事件
+         * @see RegistryProtocol#notifyExport(ExporterChangeableWrapper)
+         */
         notifyExport(exporter);
         //Ensure that a new exporter instance is returned every time export
         return new DestroyableExporter<>(exporter);
@@ -247,17 +322,40 @@ public class RegistryProtocol implements Protocol {
 
     private URL overrideUrlWithConfig(URL providerUrl, OverrideListener listener) {
         providerUrl = providerConfigurationListener.overrideUrl(providerUrl);
+        /**
+         * 监听服务配置的修改
+         */
         ServiceConfigurationListener serviceConfigurationListener = new ServiceConfigurationListener(providerUrl, listener);
+        /**
+         * 添加到观察者队列中
+         * 这个和spring boot的观察者模式类似
+         * 都是存放观察者实例当存在事件的时候调用观察者进行执行
+         */
         serviceConfigurationListeners.put(providerUrl.getServiceKey(), serviceConfigurationListener);
         return serviceConfigurationListener.overrideUrl(providerUrl);
     }
 
     @SuppressWarnings("unchecked")
     private <T> ExporterChangeableWrapper<T> doLocalExport(final Invoker<T> originInvoker, URL providerUrl) {
+        /**
+         * 取的是URL 中的 export 属性值对应的协议
+         * 也就是 注册到注册执行的 协议 dubbo://
+         * 通信协议构建并非注册和服务发现协议
+         */
         String key = getCacheKey(originInvoker);
 
         return (ExporterChangeableWrapper<T>) bounds.computeIfAbsent(key, s -> {
+            /**
+             * providerUrl 就是真实的通信协议
+             */
             Invoker<?> invokerDelegate = new InvokerDelegate<>(originInvoker, providerUrl);
+            /**
+             * 此时这个Invoker里面封装的就是通信协议了
+             * 此时再次进入代理类里面协议就是 dubbo 了
+             * @see org.apache.dubbo.rpc.Protocol$Adaptive#export(Invoker)
+             * 开启服务并将协议方法哦map
+             * @see AbstractProtocol#exporterMap
+             */
             return new ExporterChangeableWrapper<>((Exporter<T>) protocol.export(invokerDelegate), originInvoker);
         });
     }
@@ -356,6 +454,9 @@ public class RegistryProtocol implements Protocol {
      * @return
      */
     protected Registry getRegistry(final URL registryUrl) {
+        /**
+         * @see RegistryFactory$Adaptive#getRegistry(org.apache.dubbo.common.URL)
+         */
         return registryFactory.getRegistry(registryUrl);
     }
 
@@ -401,6 +502,10 @@ public class RegistryProtocol implements Protocol {
     }
 
     private URL getSubscribedOverrideUrl(URL registeredProviderUrl) {
+        /**
+         * 修改协议为 provider 并且添加参数值
+         * category = configurators & check = false
+         */
         return registeredProviderUrl.setProtocol(PROVIDER_PROTOCOL)
             .addParameters(CATEGORY_KEY, CONFIGURATORS_CATEGORY, CHECK_KEY, String.valueOf(false));
     }
@@ -434,7 +539,18 @@ public class RegistryProtocol implements Protocol {
     @Override
     @SuppressWarnings("unchecked")
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
+        /**
+         * 从URL取出registry=zookeeper 设置协议头为zookeeper
+         * @see InterfaceCompatibleRegistryProtocol#getRegistry(URL)
+         *
+         * 此时协议是 zookeeper://
+         */
         url = getRegistryUrl(url);
+        /**
+         * @see ListenerRegistryWrapper
+         * 里面的
+         * @see org.apache.dubbo.registry.zookeeper.ZookeeperRegistry
+         */
         Registry registry = registryFactory.getRegistry(url);
         if (RegistryService.class.equals(type)) {
             return proxyFactory.getInvoker((T) registry, type, url);
@@ -450,6 +566,11 @@ public class RegistryProtocol implements Protocol {
         }
 
         Cluster cluster = Cluster.getCluster(qs.get(CLUSTER_KEY));
+        /**
+         * @see RegistryProtocol#doRefer(Cluster, Registry, Class, URL, Map) 进行服务引用
+         * 此时只是创建了一个对象
+         * @see ServiceDiscoveryMigrationInvoker
+         */
         return doRefer(cluster, registry, type, url, qs);
     }
 
@@ -464,7 +585,15 @@ public class RegistryProtocol implements Protocol {
             parameters,
             consumerAttribute);
         url = url.putAttribute(CONSUMER_URL_KEY, consumerUrl);
+        /**
+         * @see ServiceDiscoveryMigrationInvoker
+         */
         ClusterInvoker<T> migrationInvoker = getMigrationInvoker(this, cluster, registry, type, url, consumerUrl);
+        /**
+         * 如果存在Listener
+         * 那么会调用每个
+         * @see RegistryProtocolListener#onRefer(RegistryProtocol, ClusterInvoker, URL, URL)
+         */
         return interceptInvoker(migrationInvoker, url, consumerUrl, url);
     }
 
@@ -574,6 +703,11 @@ public class RegistryProtocol implements Protocol {
 
     //Merge the urls of configurators
     private static URL getConfigedInvokerUrl(List<Configurator> configurators, URL url) {
+        /**
+         * 如果有没有合并的配置那么久进行合并
+         * 这个里面有值说明配置被动态修改了
+         * 那么需要合并为最新值
+         */
         if (configurators != null && configurators.size() > 0) {
             for (Configurator configurator : configurators) {
                 url = configurator.configure(url);
@@ -720,6 +854,9 @@ public class RegistryProtocol implements Protocol {
             this.providerUrl = providerUrl;
             this.notifyListener = notifyListener;
             if (ApplicationModel.getEnvironment().getConfiguration().convert(Boolean.class, org.apache.dubbo.registry.Constants.ENABLE_CONFIGURATION_LISTEN, true)) {
+                /**
+                 * @see ServiceConfigurationListener#initWith(String) 
+                 */
                 this.initWith(DynamicConfiguration.getRuleKey(providerUrl) + CONFIGURATORS_SUFFIX);
             }
         }

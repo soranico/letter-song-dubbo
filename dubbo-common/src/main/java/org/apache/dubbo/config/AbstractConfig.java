@@ -94,16 +94,35 @@ public abstract class AbstractConfig implements Serializable {
      */
     protected Boolean isDefault;
 
-
+    /**
+     * 类名去除Config Bean ConfigBase
+     * 并且将驼峰转为 - 隔开
+     * @param cls
+     * @return
+     */
     public static String getTagName(Class<?> cls) {
         return tagNameCache.computeIfAbsent(cls, (key)-> {
+            /**
+             * 类名 e.g KanoConfig
+             */
             String tag = cls.getSimpleName();
+            /**
+             * 如果类名以
+             * Config Bean ConfigBase 结尾那么进行截取
+             * e.g KanoConfig  -> Kano
+             */
             for (String suffix : SUFFIXES) {
                 if (tag.endsWith(suffix)) {
                     tag = tag.substring(0, tag.length() - suffix.length());
                     break;
                 }
             }
+            /**
+             * 变为小写 并且每个大写字母用 - 隔开
+             * 也就是驼峰转为用 - 分割
+             * 比如 KanoName  -> kano-name
+             * @see StringUtils#camelToSplitName(String, String)
+             */
             return StringUtils.camelToSplitName(tag, "-");
         });
     }
@@ -487,13 +506,27 @@ public abstract class AbstractConfig implements Serializable {
         refreshed.set(true);
         try {
             // check and init before do refresh
+            /**
+             * 刷新前进行处理
+             * @see ServiceConfigBase#preProcessRefresh()
+             * 服务发布者
+             * @see ReferenceConfigBase#preProcessRefresh()
+             */
             preProcessRefresh();
-
+            /**
+             * 获取当前的环境配置
+             * 如果在 spring环境的话那么这个就是spring的
+             */
             Environment environment = ApplicationModel.getEnvironment();
             List<Map<String, String>> configurationMaps = environment.getConfigurationMaps();
 
             // Search props starts with PREFIX in order
             String preferredPrefix = null;
+            /**
+             * 对于服务提供者
+             * 为 dubbo.service.接口
+             * @see ServiceConfigBase#getPrefixes()
+             */
             for (String prefix : getPrefixes()) {
                 if (ConfigurationUtils.hasSubProperties(configurationMaps, prefix)) {
                     preferredPrefix = prefix;
@@ -504,7 +537,9 @@ public abstract class AbstractConfig implements Serializable {
                 preferredPrefix = getPrefixes().get(0);
             }
             // Extract sub props (which key was starts with preferredPrefix)
+            // TODO 
             Collection<Map<String, String>> instanceConfigMaps = environment.getConfigurationMaps(this, preferredPrefix);
+            // 获取指定前缀配置？
             Map<String, String> subProperties = ConfigurationUtils.getSubProperties(instanceConfigMaps, preferredPrefix);
             InmemoryConfiguration subPropsConfiguration = new InmemoryConfiguration(subProperties);
 
@@ -526,17 +561,33 @@ public abstract class AbstractConfig implements Serializable {
             // loop methods, get override value and set the new value back to method
             Method[] methods = getClass().getMethods();
             for (Method method : methods) {
+                /**
+                 * 是 set方法
+                 */
                 if (MethodUtils.isSetter(method)) {
+                    // 获取属性名
                     String propertyName = extractPropertyName(method.getName());
                     // convert camelCase/snake_case to kebab-case
+                    /**
+                     * 格式化
+                     */
                     String kebabPropertyName = StringUtils.convertToSplitName(propertyName, "-");
 
                     try {
+                        /**
+                         * 获取配置值
+                         */
                         String value = StringUtils.trim(subPropsConfiguration.getString(kebabPropertyName));
                         // isTypeMatch() is called to avoid duplicate and incorrect update, for example, we have two 'setGeneric' methods in ReferenceConfig.
                         if (StringUtils.hasText(value) && ClassUtils.isTypeMatch(method.getParameterTypes()[0], value) &&
                                 !isIgnoredAttribute(getClass(), propertyName)) {
+                            /**
+                             * 解析EL表达式
+                             */
                             value = environment.resolvePlaceholders(value);
+                            /**
+                             * 设置值
+                             */
                             method.invoke(this, ClassUtils.convertPrimitive(method.getParameterTypes()[0], value));
                         }
                     } catch (Exception e) {
@@ -544,7 +595,12 @@ public abstract class AbstractConfig implements Serializable {
                                 this.getClass().getSimpleName() +
                                 ", please make sure every property has getter/setter method provided.");
                     }
-                } else if (isParametersSetter(method)) {
+                }
+                /**
+                 * 设置 setParameters
+                 * @see ServiceConfigBase#setParameters(Map)
+                 */
+                else if (isParametersSetter(method)) {
                     String propertyName = extractPropertyName(method.getName());
                     String value = StringUtils.trim(subPropsConfiguration.getString(propertyName));
                     Map<String, String> parameterMap = null;

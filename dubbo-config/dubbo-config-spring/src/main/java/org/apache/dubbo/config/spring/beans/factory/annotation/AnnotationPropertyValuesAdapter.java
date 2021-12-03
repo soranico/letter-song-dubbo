@@ -45,6 +45,11 @@ public class AnnotationPropertyValuesAdapter implements PropertyValues {
      */
     public AnnotationPropertyValuesAdapter(Map<String, Object> attributes, PropertyResolver propertyResolver,
                                            String... ignoreAttributeNames) {
+        /**
+         * 从环境中对注解中的属性进行解析比如解析EL
+         * 如果这个属性在忽略集合里那么久不需要进行解析
+         * @see com.alibaba.spring.util.AnnotationUtils#getAttributes(Map, PropertyResolver, String...)
+         */
         this.delegate = new MutablePropertyValues(getAttributes(attributes, propertyResolver, ignoreAttributeNames));
     }
 

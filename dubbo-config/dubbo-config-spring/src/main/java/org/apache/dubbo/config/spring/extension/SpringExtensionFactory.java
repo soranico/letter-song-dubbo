@@ -38,6 +38,10 @@ public class SpringExtensionFactory implements ExtensionFactory, Lifecycle {
 
     private static final Set<ApplicationContext> CONTEXTS = new ConcurrentHashSet<ApplicationContext>();
 
+    /**
+     * @see org.apache.dubbo.config.spring.context.DubboInfraBeanRegisterPostProcessor#setApplicationContext(ApplicationContext)
+     * 通过回调设置的
+     */
     public static void addApplicationContext(ApplicationContext context) {
         CONTEXTS.add(context);
         if (context instanceof ConfigurableApplicationContext) {

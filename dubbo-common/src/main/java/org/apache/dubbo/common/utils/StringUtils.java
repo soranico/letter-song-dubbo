@@ -913,8 +913,14 @@ public final class StringUtils {
         }
 
         StringBuilder buf = null;
+        /**
+         * 不以 - 开头
+         */
         for (int i = 0; i < camelName.length(); i++) {
             char ch = camelName.charAt(i);
+            /**
+             * 大写字母
+             */
             if (ch >= 'A' && ch <= 'Z') {
                 if (buf == null) {
                     buf = new StringBuilder();
@@ -925,6 +931,10 @@ public final class StringUtils {
                 if (i > 0) {
                     buf.append(split);
                 }
+                /**
+                 * 字母小写
+                 * 并且每个字符用 - 隔开
+                 */
                 buf.append(Character.toLowerCase(ch));
             } else if (buf != null) {
                 buf.append(ch);

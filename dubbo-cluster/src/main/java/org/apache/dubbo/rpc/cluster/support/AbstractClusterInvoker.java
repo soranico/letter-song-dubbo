@@ -258,7 +258,10 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
 //        if (contextAttachments != null && contextAttachments.size() != 0) {
 //            ((RpcInvocation) invocation).addObjectAttachmentsIfAbsent(contextAttachments);
 //        }
-
+        /**
+         * 获取服务提供者列表
+         * @see AbstractClusterInvoker#list(Invocation)
+         */
         List<Invoker<T>> invokers = list(invocation);
         LoadBalance loadbalance = initLoadBalance(invokers, invocation);
         RpcUtils.attachInvocationIdIfAsync(getUrl(), invocation);
@@ -305,6 +308,9 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
                                        LoadBalance loadbalance) throws RpcException;
 
     protected List<Invoker<T>> list(Invocation invocation) throws RpcException {
+        /**
+         * @see org.apache.dubbo.registry.integration.RegistryDirectory#doList(org.apache.dubbo.rpc.Invocation)
+         */
         return getDirectory().list(invocation);
     }
 

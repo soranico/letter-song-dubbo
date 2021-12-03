@@ -38,7 +38,22 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
     @Override
     public <T> Invoker<T> getInvoker(T proxy, Class<T> type, URL url) {
         // TODO Wrapper cannot handle this scenario correctly: the classname contains '$'
+        /**
+         * 是生成的代理类则使用接口
+         * 否则使用实例的类型
+         * 这一步会生成一个代理
+         * @see org.apache.dubbo.config.ServiceConfig#buildAttributes(org.apache.dubbo.config.ProtocolConfig)
+         *
+         * @see Wrapper#getWrapper(Class) Invoker 存放的是 Wrap
+         */
         final Wrapper wrapper = Wrapper.getWrapper(proxy.getClass().getName().indexOf('$') < 0 ? proxy.getClass() : type);
+        /**
+         *
+         * 此时这个URL是注册协议里面有个export=通信协议(dubbo://)
+         * proxy 是原始对象
+         * 最终调用
+         * @see AbstractProxyInvoker#doInvoke(Object, String, Class[], Object[])
+         */
         return new AbstractProxyInvoker<T>(proxy, type, url) {
             @Override
             protected Object doInvoke(T proxy, String methodName,

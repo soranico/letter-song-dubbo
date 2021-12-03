@@ -18,6 +18,7 @@ package org.apache.dubbo.config.utils;
 
 import org.apache.dubbo.common.utils.CollectionUtils;
 import org.apache.dubbo.common.utils.StringUtils;
+import org.apache.dubbo.config.ReferenceConfig;
 import org.apache.dubbo.config.ReferenceConfigBase;
 import org.apache.dubbo.rpc.model.ApplicationModel;
 import org.apache.dubbo.rpc.service.Destroyable;
@@ -104,12 +105,23 @@ public class ReferenceConfigCache {
 
     @SuppressWarnings("unchecked")
     public <T> T get(ReferenceConfigBase<T> referenceConfig) {
+        /**
+         * 生成调用者的key
+         * 组/接口:版本
+         * 这个和服务提供者注册的key是一样的
+         */
         String key = generator.generateKey(referenceConfig);
         Class<?> type = referenceConfig.getInterfaceClass();
 
+        /**
+         * 每个类型生成一个Map
+         */
         ConcurrentMap<String, Object> proxiesOfType = proxies.computeIfAbsent(type, _t -> new ConcurrentHashMap<>());
 
         return (T) proxiesOfType.computeIfAbsent(key, _k -> {
+            /**
+             * @see ReferenceConfig#get()
+             */
             Object proxy = referenceConfig.get();
             referredReferences.put(key, referenceConfig);
             return proxy;

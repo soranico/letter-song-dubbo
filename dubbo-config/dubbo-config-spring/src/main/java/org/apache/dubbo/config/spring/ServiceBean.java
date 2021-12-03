@@ -90,6 +90,11 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
                 setPath(getInterface());
             }
         }
+        /**
+         * 注册当前的服务
+         * 首先获取一个全局实例
+         * @see DubboBootstrap#getInstance()
+         */
         //register service bean and set bootstrap
         DubboBootstrap.getInstance().service(this);
     }

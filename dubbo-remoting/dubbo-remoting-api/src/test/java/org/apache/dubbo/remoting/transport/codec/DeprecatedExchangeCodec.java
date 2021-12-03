@@ -16,6 +16,7 @@
  */
 package org.apache.dubbo.remoting.transport.codec;
 
+import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.Version;
 import org.apache.dubbo.common.io.Bytes;
 import org.apache.dubbo.common.io.StreamUtils;
@@ -59,6 +60,9 @@ final class DeprecatedExchangeCodec extends DeprecatedTelnetCodec implements Cod
     }
 
     public void encode(Channel channel, OutputStream os, Object msg) throws IOException {
+        /**
+         * 
+         */
         if (msg instanceof Request) {
             encodeRequest(channel, os, (Request) msg);
         } else if (msg instanceof Response) {
@@ -217,6 +221,9 @@ final class DeprecatedExchangeCodec extends DeprecatedTelnetCodec implements Cod
 
         // encode request data.
         UnsafeByteArrayOutputStream bos = new UnsafeByteArrayOutputStream(1024);
+        /**
+         * @see org.apache.dubbo.common.serialize.hessian2.Hessian2Serialization#serialize(URL, OutputStream) 
+         */
         ObjectOutput out = serialization.serialize(channel.getUrl(), bos);
         if (req.isEvent()) {
             encodeEventData(channel, out, req.getData());

@@ -94,6 +94,10 @@ public class NettyServerHandler extends ChannelDuplexHandler {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         NettyChannel channel = NettyChannel.getOrAddChannel(ctx.channel(), url, handler);
+        /**
+         * 在接收到消息的时候最终委托给真实的处理handler
+         * @see org.apache.dubbo.remoting.transport.MultiMessageHandler#received(Channel, Object)
+         */
         handler.received(channel, msg);
     }
 

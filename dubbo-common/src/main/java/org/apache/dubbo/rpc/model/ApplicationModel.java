@@ -78,11 +78,20 @@ public class ApplicationModel {
         return getServiceRepository().lookupReferredService(serviceKey);
     }
 
+    /**
+     * 默认有三个
+     * config=org.apache.dubbo.config.context.ConfigManager
+     * environment=org.apache.dubbo.common.config.Environment
+     * repository=org.apache.dubbo.rpc.model.ServiceRepository
+     */
     private static ExtensionLoader<FrameworkExt> LOADER = ExtensionLoader.getExtensionLoader(FrameworkExt.class);
 
     public static void initFrameworkExts() {
         /**
          * 加载并初始化配置
+         * @see ConfigManager#initialize()
+         * @see Environment#initialize()
+         * @see ServiceRepository#initialize()
          */
         Set<FrameworkExt> exts = ExtensionLoader.getExtensionLoader(FrameworkExt.class).getSupportedExtensionInstances();
         for (FrameworkExt ext : exts) {
@@ -98,6 +107,13 @@ public class ApplicationModel {
     }
 
     public static ConfigManager getConfigManager() {
+        /**
+         * 存放的是所有的配置
+         * @see ApplicationConfig
+         * @see org.apache.dubbo.config.RegistryConfig
+         * 此时加载的是
+         * @see ConfigManager
+         */
         if (configManager == null) {
             configManager = (ConfigManager) LOADER.getExtension(ConfigManager.NAME);
         }

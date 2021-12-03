@@ -18,14 +18,14 @@ package org.apache.dubbo.config.spring.util;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.dubbo.config.spring.beans.factory.annotation.ServicePackagesHolder;
-import org.apache.dubbo.config.spring.context.DubboConfigBeanInitializer;
-import org.apache.dubbo.config.spring.reference.ReferenceBeanManager;
 import org.apache.dubbo.config.spring.beans.factory.annotation.DubboConfigAliasPostProcessor;
 import org.apache.dubbo.config.spring.beans.factory.annotation.ReferenceAnnotationBeanPostProcessor;
+import org.apache.dubbo.config.spring.beans.factory.annotation.ServicePackagesHolder;
 import org.apache.dubbo.config.spring.beans.factory.config.DubboConfigDefaultPropertyValueBeanPostProcessor;
 import org.apache.dubbo.config.spring.context.DubboBootstrapApplicationListener;
+import org.apache.dubbo.config.spring.context.DubboConfigBeanInitializer;
 import org.apache.dubbo.config.spring.context.DubboInfraBeanRegisterPostProcessor;
+import org.apache.dubbo.config.spring.reference.ReferenceBeanManager;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
@@ -164,7 +164,12 @@ public interface DubboBeanUtils {
         if (!checkBeanExists(beanFactory, PropertySourcesPlaceholderConfigurer.class)) {
             Map<String, Object> propertySourcesPlaceholderPropertyValues = new HashMap<>();
             propertySourcesPlaceholderPropertyValues.put("ignoreUnresolvablePlaceholders", true);
-
+            /**
+             * 注册解析el表达式
+             * 这个是一个扩展
+             * 好像没有在spring中找到使用的地方
+             * TODO usage
+             */
             registerBeanDefinition(registry, PropertySourcesPlaceholderConfigurer.class.getName(),
                     PropertySourcesPlaceholderConfigurer.class, propertySourcesPlaceholderPropertyValues);
         }

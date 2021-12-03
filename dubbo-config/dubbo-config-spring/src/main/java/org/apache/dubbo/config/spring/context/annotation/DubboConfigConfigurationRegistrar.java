@@ -51,6 +51,10 @@ public class DubboConfigConfigurationRegistrar implements ImportBeanDefinitionRe
 //        }
 
         // Since 2.7.6
+        /**
+         * 注册一些基础功能的BD
+         * @see  org.apache.dubbo.config.spring.beans.factory.annotation.ServicePackagesHolder
+         */
         registerCommonBeans(registry);
     }
 }

@@ -49,8 +49,11 @@ public @interface Activate {
      *
      * @return group names to match
      * @see ExtensionLoader#getActivateExtension(URL, String, String)
+     *
+     * 作用于 provider 还是 consumer
      */
     String[] group() default {};
+
 
     /**
      * Activate the current extension when the specified keys appear in the URL's parameters.
@@ -62,6 +65,8 @@ public @interface Activate {
      * @return URL parameter keys
      * @see ExtensionLoader#getActivateExtension(URL, String)
      * @see ExtensionLoader#getActivateExtension(URL, String, String)
+     *
+     * URL中存在指定的key
      */
     String[] value() default {};
 

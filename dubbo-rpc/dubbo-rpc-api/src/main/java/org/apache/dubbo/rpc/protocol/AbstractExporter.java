@@ -55,6 +55,9 @@ public abstract class AbstractExporter<T> implements Exporter<T> {
         if (unexported) {
             return;
         }
+        /**
+         * 调用销毁方法
+         */
         unexported = true;
         getInvoker().destroy();
         afterUnExport();

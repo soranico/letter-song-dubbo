@@ -29,7 +29,10 @@ import java.util.List;
  */
 @Adaptive
 public class AdaptiveExtensionFactory implements ExtensionFactory {
-
+    /**
+     * @see SpiExtensionFactory
+     * @see org.apache.dubbo.config.spring.extension.SpringExtensionFactory
+     */
     private final List<ExtensionFactory> factories;
 
     public AdaptiveExtensionFactory() {

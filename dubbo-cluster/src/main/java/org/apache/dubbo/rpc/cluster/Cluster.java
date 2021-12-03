@@ -54,6 +54,11 @@ public interface Cluster {
         if (StringUtils.isEmpty(name)) {
             name = Cluster.DEFAULT;
         }
+        /**
+         * @see org.apache.dubbo.rpc.cluster.support.wrapper.MockClusterWrapper
+         * 里面是
+         * @see org.apache.dubbo.rpc.cluster.support.FailoverCluster
+         */
         return ExtensionLoader.getExtensionLoader(Cluster.class).getExtension(name, wrap);
     }
 }

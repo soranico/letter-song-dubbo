@@ -273,6 +273,9 @@ public class MigrationInvoker<T> implements MigrationClusterInvoker<T> {
                     return invoker.invoke(invocation);
                 }
             }
+            /**
+             * @see org.apache.dubbo.rpc.cluster.support.wrapper.MockClusterInvoker#invoke(Invocation)
+             */
             return currentAvailableInvoker.invoke(invocation);
         }
 

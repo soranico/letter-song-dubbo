@@ -38,6 +38,7 @@ public abstract class AbstractServiceConfig extends AbstractInterfaceConfig {
 
     /**
      * The service version
+     * 服务的版本
      */
     protected String version;
 

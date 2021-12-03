@@ -65,11 +65,17 @@ public class DubboInfraBeanRegisterPostProcessor implements BeanDefinitionRegist
         beanFactory.addBeanPostProcessor(referenceAnnotationBeanPostProcessor);
 
         // register PropertySourcesPlaceholderConfigurer bean if not exits
+        /**
+         * 注册解析el
+         */
         DubboBeanUtils.registerBeansIfNotExists(beanFactory, registry);
 
         // Initialize dubbo Environment before ConfigManager
         // Extract dubbo props from Spring env and put them to app config
         ConfigurableEnvironment environment = (ConfigurableEnvironment) applicationContext.getEnvironment();
+        /**
+         * 获取所有dubbo的配置
+         */
         SortedMap<String, String> dubboProperties = EnvironmentUtils.filterDubboProperties(environment);
         ApplicationModel.getEnvironment().setAppConfigMap(dubboProperties);
 
@@ -77,6 +83,13 @@ public class DubboInfraBeanRegisterPostProcessor implements BeanDefinitionRegist
         beanFactory.registerSingleton(ConfigManager.BEAN_NAME, ApplicationModel.getConfigManager());
     }
 
+    /**
+     * 这里不能使用注解注入的原因
+     * 因为此时处理注解的BPP还没有创建为bean并添加到 beanPostProcessors(List)中
+     * @see org.springframework.beans.factory.support.AbstractBeanFactory#beanPostProcessors
+     * 但处理这个方法的BPP 在执行BFPP之前就已经添加
+     * @see org.springframework.context.support.AbstractApplicationContext#prepareBeanFactory(ConfigurableListableBeanFactory)
+     */
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.applicationContext = applicationContext;

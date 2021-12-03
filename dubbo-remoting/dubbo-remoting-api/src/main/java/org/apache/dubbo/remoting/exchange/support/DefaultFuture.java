@@ -91,6 +91,10 @@ public class DefaultFuture extends CompletableFuture<Object> {
      */
     private static void timeoutCheck(DefaultFuture future) {
         TimeoutCheckTask task = new TimeoutCheckTask(future.getId());
+        /**
+         * 向时间轮中添加一个定时任务
+         * @see HashedWheelTimer#newTimeout(org.apache.dubbo.common.timer.TimerTask, long, java.util.concurrent.TimeUnit)
+         */
         future.timeoutCheckTask = TIME_OUT_TIMER.newTimeout(task, future.getTimeout(), TimeUnit.MILLISECONDS);
     }
 
@@ -108,10 +112,19 @@ public class DefaultFuture extends CompletableFuture<Object> {
         final DefaultFuture future = new DefaultFuture(channel, request, timeout);
         future.setExecutor(executor);
         // ThreadlessExecutor needs to hold the waiting future in case of circuit return.
+        /**
+         * 因为这个是同步的所以设置结果的响应
+         * @see ThreadlessExecutor#setWaitingFuture(CompletableFuture)
+         */
         if (executor instanceof ThreadlessExecutor) {
             ((ThreadlessExecutor) executor).setWaitingFuture(future);
         }
         // timeout check
+        /**
+         * 新增一个超时检查
+         * 如果超时的话会设置值防止同步一直阻塞
+         * @see org.apache.dubbo.rpc.protocol.AbstractInvoker#waitForResultIfSync(org.apache.dubbo.rpc.AsyncRpcResult, org.apache.dubbo.rpc.RpcInvocation)
+         */
         timeoutCheck(future);
         return future;
     }
@@ -160,13 +173,24 @@ public class DefaultFuture extends CompletableFuture<Object> {
 
     public static void received(Channel channel, Response response, boolean timeout) {
         try {
+            /**
+             * 获取当前响应对应的future
+             * 这个自增ID在创建 Future的时候就已经设置了
+             */
             DefaultFuture future = FUTURES.remove(response.getId());
             if (future != null) {
                 Timeout t = future.timeoutCheckTask;
+                /**
+                 * 取消之前设置的超时任务
+                 * 因为此时任务已经正常完成了
+                 */
                 if (!timeout) {
                     // decrease Time
                     t.cancel();
                 }
+                /**
+                 * @see DefaultFuture#doReceived(Response)
+                 */
                 future.doReceived(response);
             } else {
                 logger.warn("The timeout response finally returned at "

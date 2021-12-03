@@ -28,7 +28,10 @@ import java.util.Map;
 public class DubboExporter<T> extends AbstractExporter<T> {
 
     private final String key;
-
+    /**
+     * 这个存放的是服务的发布
+     * @see org.apache.dubbo.rpc.protocol.AbstractProtocol#exporterMap
+     */
     private final Map<String, Exporter<?>> exporterMap;
 
     public DubboExporter(Invoker<T> invoker, String key, Map<String, Exporter<?>> exporterMap) {

@@ -42,15 +42,26 @@ import java.util.concurrent.ConcurrentHashMap;
 public abstract class AbstractProtocol implements Protocol {
 
     protected final Logger logger = LoggerFactory.getLogger(getClass());
-
+    /**
+     * 存储发布的服务
+     * key的格式为 org.apache.dubbo.demo.DemoService:20880
+     * @see ProtocolUtils#serviceKey(URL)
+     *
+     */
     protected final Map<String, Exporter<?>> exporterMap = new ConcurrentHashMap<String, Exporter<?>>();
 
     /**
      * <host:port, ProtocolServer>
+     * 对服务地址的监听
+     * 每一个 ProtocolServer监听对应key 即一个服务端
+     *
      */
     protected final Map<String, ProtocolServer> serverMap = new ConcurrentHashMap<>();
 
     //TODO SoftReference
+    /**
+     * 服务的引用
+     */
     protected final Set<Invoker<?>> invokers = new ConcurrentHashSet<Invoker<?>>();
 
     protected static String serviceKey(URL url) {
@@ -69,6 +80,9 @@ public abstract class AbstractProtocol implements Protocol {
 
     @Override
     public void destroy() {
+        /**
+         * 消费者退出的时候删除所有服务的引用
+         */
         for (Invoker<?> invoker : invokers) {
             if (invoker != null) {
                 invokers.remove(invoker);
@@ -82,6 +96,10 @@ public abstract class AbstractProtocol implements Protocol {
                 }
             }
         }
+        /**
+         * 提供者退出的时候
+         * 删除发布的服务
+         */
         for (String key : new ArrayList<String>(exporterMap.keySet())) {
             Exporter<?> exporter = exporterMap.remove(key);
             if (exporter != null) {
@@ -99,6 +117,9 @@ public abstract class AbstractProtocol implements Protocol {
 
     @Override
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
+        /**
+         * 服务引用交给具体子类实现
+         */
         return protocolBindingRefer(type, url);
     }
 

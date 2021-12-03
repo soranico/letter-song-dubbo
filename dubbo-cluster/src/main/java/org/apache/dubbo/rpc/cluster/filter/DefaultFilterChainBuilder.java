@@ -33,12 +33,20 @@ public class DefaultFilterChainBuilder implements FilterChainBuilder {
     @Override
     public <T> Invoker<T> buildInvokerChain(final Invoker<T> originalInvoker, String key, String group) {
         Invoker<T> last = originalInvoker;
+        /**
+         * 获取可以应用的当前url的拦截链
+         * 当前分组 参数
+         */
         List<Filter> filters = ExtensionLoader.getExtensionLoader(Filter.class).getActivateExtension(originalInvoker.getUrl(), key, group);
 
         if (!filters.isEmpty()) {
             for (int i = filters.size() - 1; i >= 0; i--) {
                 final Filter filter = filters.get(i);
                 final Invoker<T> next = last;
+                /**
+                 * 构成一个链表
+                 * 最后调用传入的实例
+                 */
                 last = new FilterChainNode<>(originalInvoker, next, filter);
             }
         }

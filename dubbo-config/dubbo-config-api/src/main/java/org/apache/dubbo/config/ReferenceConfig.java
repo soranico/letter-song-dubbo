@@ -199,7 +199,10 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
         if (destroyed) {
             throw new IllegalStateException("The invoker of ReferenceConfig(" + url + ") has already destroyed!");
         }
-
+        /**
+         * 生成代理对象
+         * @see ReferenceConfig#init()
+         */
         if (ref == null) {
             init();
         }
@@ -248,7 +251,12 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
         }
 
         //init serivceMetadata
+        /**
+         * 服务元数据
+         * 分组,版本,接口等
+         */
         initServiceMetadata(consumer);
+        /** 调用的接口类型 */
         serviceMetadata.setServiceType(getServiceInterfaceClass());
         // TODO, uncomment this line once service key is unified
         serviceMetadata.setServiceKey(URL.buildKey(interfaceName, group, version));
@@ -272,7 +280,9 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
             if (revision != null && revision.length() > 0) {
                 map.put(REVISION_KEY, revision);
             }
-
+            /**
+             * @see ReferenceConfig#methods(Class) 生成调用者的 Warp 代理
+             */
             String[] methods = methods(interfaceClass);
             if (methods.length == 0) {
                 logger.warn("No method found in service interface " + interfaceClass.getName());
@@ -323,7 +333,10 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
         map.put(REGISTER_IP_KEY, hostToRegistry);
 
         serviceMetadata.getAttachments().putAll(map);
-
+        /**
+         * 生成调用者的代理对象
+         * @see ReferenceConfig#createProxy(Map)
+         */
         ref = createProxy(map);
 
         serviceMetadata.setTarget(ref);
@@ -339,6 +352,9 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
 
     @SuppressWarnings({"unchecked", "rawtypes", "deprecation"})
     private T createProxy(Map<String, String> map) {
+        /**
+         * 同个jvm调用
+         */
         if (shouldJvmRefer(map)) {
             URL url = new ServiceConfigURL(LOCAL_PROTOCOL, LOCALHOST_VALUE, 0, interfaceClass.getName()).addParameters(map);
             invoker = REF_PROTOCOL.refer(interfaceClass, url);
@@ -386,7 +402,16 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
                     }
                 }
             }
-
+            /**
+             * registry://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?
+             * application=kano-consumer
+             * &dubbo=2.0.2&pid=9490&registry=zookeeper&timestamp=1638357703415
+             * 此时是注册协议
+             * @see org.apache.dubbo.rpc.Protocol$Adaptive#refer(Class, URL)
+             *
+             * 此时返回的是
+             * @see org.apache.dubbo.registry.client.migration.ServiceDiscoveryMigrationInvoker
+             */
             if (urls.size() == 1) {
                 invoker = REF_PROTOCOL.refer(interfaceClass, urls.get(0));
             } else {
@@ -426,6 +451,12 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
         MetadataUtils.publishServiceDefinition(consumerURL);
 
         // create service proxy
+        /**
+         * @see org.apache.dubbo.rpc.ProxyFactory$Adaptive#getProxy(Invoker, boolean)
+         *
+         * 最终返回的是一个代理类
+         * @see org.apache.dubbo.rpc.proxy.InvokerInvocationHandler
+         */
         return (T) PROXY_FACTORY.getProxy(invoker, ProtocolUtils.isGeneric(generic));
     }
 

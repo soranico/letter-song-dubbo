@@ -280,11 +280,24 @@ public class DubboProtocol extends AbstractProtocol {
 
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
+        /**
+         * 这个协议此时就是注册到注册执行的协议
+         *
+         * @see org.apache.dubbo.registry.integration.RegistryProtocol#doLocalExport(org.apache.dubbo.rpc.Invoker, org.apache.dubbo.common.URL)
+         */
         URL url = invoker.getUrl();
 
         // export service.
+        /**
+         * 发布服务的key
+         * org.apache.dubbo.demo.DemoService:20880
+         * 先按组再按版本
+         */
         String key = serviceKey(url);
         DubboExporter<T> exporter = new DubboExporter<T>(invoker, key, exporterMap);
+        /**
+         * 存放已经发布的服务
+         */
         exporterMap.put(key, exporter);
 
         //export an stub service for dispatching event
@@ -300,7 +313,10 @@ public class DubboProtocol extends AbstractProtocol {
 
             }
         }
-
+        /**
+         * 开启Netty服务监听
+         * @see DubboProtocol#openServer(URL)
+         */
         openServer(url);
         optimizeSerialization(url);
 
@@ -313,11 +329,18 @@ public class DubboProtocol extends AbstractProtocol {
         //client can export a service which's only for server to invoke
         boolean isServer = url.getParameter(IS_SERVER_KEY, true);
         if (isServer) {
+            /**
+             * 当前地址对应的服务 ip+port
+             */
             ProtocolServer server = serverMap.get(key);
             if (server == null) {
                 synchronized (this) {
                     server = serverMap.get(key);
                     if (server == null) {
+                        /**
+                         * 开启一个服务
+                         * @see DubboProtocol#createServer(URL)
+                         */
                         serverMap.put(key, createServer(url));
                     }else {
                         server.reset(url);
@@ -335,17 +358,27 @@ public class DubboProtocol extends AbstractProtocol {
                 // send readonly event when server closes, it's enabled by default
                 .addParameterIfAbsent(CHANNEL_READONLYEVENT_SENT_KEY, Boolean.TRUE.toString())
                 // enable heartbeat by default
+                /** 默认心跳时间 60s  */
                 .addParameterIfAbsent(HEARTBEAT_KEY, String.valueOf(DEFAULT_HEARTBEAT))
                 .addParameter(CODEC_KEY, DubboCodec.NAME)
                 .build();
+        /** 服务器类型,默认是netty */
         String str = url.getParameter(SERVER_KEY, DEFAULT_REMOTING_SERVER);
-
+        /**
+         * 这一步会加载支持的服务器类型
+         * @see org.apache.dubbo.remoting.transport.netty4.NettyTransporter
+         */
         if (str != null && str.length() > 0 && !ExtensionLoader.getExtensionLoader(Transporter.class).hasExtension(str)) {
             throw new RpcException("Unsupported server type: " + str + ", url: " + url);
         }
 
         ExchangeServer server;
         try {
+            /**
+             * 添加了一个 Handler
+             * @see Exchangers#bind(URL, ExchangeHandler)
+             * 此时异步开启了Netty服务
+             */
             server = Exchangers.bind(url, requestHandler);
         } catch (RemotingException e) {
             throw new RpcException("Fail to start server(url: " + url + ") " + e.getMessage(), e);

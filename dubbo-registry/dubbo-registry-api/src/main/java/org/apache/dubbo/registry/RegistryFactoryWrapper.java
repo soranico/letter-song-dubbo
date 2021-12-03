@@ -31,6 +31,12 @@ public class RegistryFactoryWrapper implements RegistryFactory {
 
     @Override
     public Registry getRegistry(URL url) {
+        /**
+         * 处理服务发现的
+         * @see org.apache.dubbo.registry.client.ServiceDiscoveryRegistryFactory#getRegistry(URL) 
+         * 
+         * @see org.apache.dubbo.registry.zookeeper.ZookeeperRegistryFactory#getRegistry(URL) 
+         */
         return new ListenerRegistryWrapper(registryFactory.getRegistry(url),
                 Collections.unmodifiableList(ExtensionLoader.getExtensionLoader(RegistryServiceListener.class)
                         .getActivateExtension(url, "registry.listeners")));

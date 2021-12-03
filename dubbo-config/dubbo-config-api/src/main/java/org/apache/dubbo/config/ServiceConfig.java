@@ -115,12 +115,14 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
      * A delayed exposure service timer
      */
     private static final ScheduledExecutorService DELAY_EXPORT_EXECUTOR = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("DubboServiceDelayExporter", true));
-
+    // 加载
     private static final Protocol PROTOCOL = ExtensionLoader.getExtensionLoader(Protocol.class).getAdaptiveExtension();
 
     /**
      * A {@link ProxyFactory} implementation that will generate a exported service proxy,the JavassistProxyFactory is its
      * default implementation
+     *
+     * @see org.apache.dubbo.rpc.ProxyFactory$Adaptive 生成的代理类
      */
     private static final ProxyFactory PROXY_FACTORY = ExtensionLoader.getExtensionLoader(ProxyFactory.class).getAdaptiveExtension();
 
@@ -197,9 +199,15 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
             this.bootstrap.service(this);
 
             // load ServiceListeners from extension
+            /**
+             * 加载所有支持的观察者,在服务发布和下架的时候回进行会进行回调
+             * @see ServiceListener
+             */
             ExtensionLoader<ServiceListener> extensionLoader = ExtensionLoader.getExtensionLoader(ServiceListener.class);
             this.serviceListeners.addAll(extensionLoader.getSupportedExtensionInstances());
-
+            /**
+             * @see ServiceConfig#checkAndUpdateSubConfigs()
+             */
             this.checkAndUpdateSubConfigs();
         }
 
@@ -212,6 +220,10 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
     @Override
     public synchronized void export() {
         if (this.shouldExport() && !this.exported) {
+            /**
+             * 进行初始化操作
+             * @see ServiceConfig#init()
+             */
             this.init();
 
             // check bootstrap state
@@ -220,6 +232,10 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
             }
 
             if (!this.isRefreshed()) {
+                /**
+                 * 刷新配置参数
+                 * @see ServiceConfig#refresh()
+                 */
                 this.refresh();
             }
 
@@ -230,6 +246,10 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
             if (shouldDelay()) {
                 DELAY_EXPORT_EXECUTOR.schedule(this::doExport, getDelay(), TimeUnit.MILLISECONDS);
             } else {
+                /**
+                 * 服务发布
+                 * @see ServiceConfig#doExport()
+                 */
                 doExport();
             }
 
@@ -254,6 +274,9 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
     private void checkAndUpdateSubConfigs() {
 
         // Use default configs defined explicitly with global scope
+        /**
+         * 完成一些配置设置
+         */
         completeCompoundConfigs();
 
         checkProtocol();
@@ -271,7 +294,9 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         if (StringUtils.isEmpty(interfaceName)) {
             throw new IllegalStateException("<dubbo:service interface=\"\" /> interface not allow null!");
         }
-
+        /**
+         * 如果是实现的 GenericService 那么类就是 GenericService
+         */
         if (ref instanceof GenericService) {
             interfaceClass = GenericService.class;
             if (StringUtils.isEmpty(generic)) {
@@ -288,6 +313,9 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
             checkRef();
             generic = Boolean.FALSE.toString();
         }
+        /**
+         * 没有什么用,现在用 stub 代替了
+         */
         if (local != null) {
             if ("true".equals(local)) {
                 local = interfaceName + "Local";
@@ -302,7 +330,12 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                 throw new IllegalStateException("The local implementation class " + localClass.getName() + " not implement interface " + interfaceName);
             }
         }
+        /**
+         * 如果配置了 stub 在真正调用之前会先走
+         * stub的方法 ,stub 里面有调用对象的引用
+         */
         if (stub != null) {
+            /** true 那么找的是 接口+Stub这个路径,需要同包 */
             if ("true".equals(stub)) {
                 stub = interfaceName + "Stub";
             }
@@ -339,6 +372,9 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         if (StringUtils.isEmpty(path)) {
             path = interfaceName;
         }
+        /**
+         * @see ServiceConfig#doExportUrls()
+         */
         doExportUrls();
         exported();
     }
@@ -354,28 +390,73 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                 this,
                 serviceMetadata
         );
-
+        /**
+         *
+         * 服务发现协议 service-discovery-registry://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?REGISTRY_CLUSTER=registryConfig&application=dubbo-demo-annotation-provider&dubbo=2.0.2&pid=27246&registry=zookeeper&timestamp=1630483982226
+         *
+         * 获取注册的协议地址 registry://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?REGISTRY_CLUSTER=registryConfig&application=dubbo-demo-annotation-provider&dubbo=2.0.2&pid=27246&registry=zookeeper&timestamp=1630483982226
+         *
+         */
         List<URL> registryURLs = ConfigValidationUtils.loadRegistries(this, true);
-
+        /**
+         * 迭代配置的服务每个协议
+         */
         for (ProtocolConfig protocolConfig : protocols) {
+            /**
+             * @see ProtocolConfig#getContextpath() 如果存在
+             * 则 协议里面的path / 服务的path
+             * 否则直接用服务的path
+             *
+             * 最后是  组/服务:版本
+             * com.kanozz.service.KanoProvider:1.0
+             */
             String pathKey = URL.buildKey(getContextPath(protocolConfig)
                     .map(p -> p + "/" + path)
                     .orElse(path), group, version);
             // In case user specified path, register service one more time to map it to path.
+            /**
+             * 保存到本地仓库也就是一个map里面
+             * @see ServiceRepository#services
+             * @see ServiceRepository#registerService(String, Class)
+             *
+             */
             repository.registerService(pathKey, interfaceClass);
+            /**
+             * 注册服务到注册中心
+             * @see ServiceConfig#doExportUrlsFor1Protocol(ProtocolConfig, List)
+             */
             doExportUrlsFor1Protocol(protocolConfig, registryURLs);
         }
     }
 
 
     private void doExportUrlsFor1Protocol(ProtocolConfig protocolConfig, List<URL> registryURLs) {
+        /**
+         * 构建属性 也就是 key = value的格式
+         * 会依次添加 app module provider protocol 服务的配置
+         * 相同的会进行优先级覆盖
+         * @see ServiceConfig#buildAttributes(ProtocolConfig) 
+         */
         Map<String, String> map = buildAttributes(protocolConfig);
 
         //init serviceMetadata attachments
         serviceMetadata.getAttachments().putAll(map);
-
+        /**
+         * 构建注册的URL
+         * dubbo://192.168.105.110:20880/com.kanozz.service.KanoProvider?
+         * anyhost=true&application=kano&bind.ip=192.168.105.110&bind.port=20880&deprecated=false&dubbo=2.0.2&dynamic=true&environment=product&generic=false&
+         * interface=com.kanozz.service.KanoProvider
+         * &metadata-type=remote&methods=kano&pid=4302&release=&revision=1.0&
+         * side=provider
+         * &timestamp=1638168736444&version=1.0
+         *
+         * 根据协议和注册地址来构建发布服务的URL
+         * 此时协议头就是需要注册的协议头
+         */
         URL url = buildUrl(protocolConfig, registryURLs, map);
-
+        /**
+         * @see ServiceConfig#exportUrl(URL, List) 
+         */
         exportUrl(url, registryURLs);
     }
 
@@ -400,10 +481,17 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         }
 
         // append params with method configs,
+        /**
+         * 里面封装的是这个注解的配置
+         * @see org.apache.dubbo.config.annotation.Method
+         */
         if (CollectionUtils.isNotEmpty(getMethods())) {
             getMethods().forEach(method -> appendParametersWithMethod(method, map));
         }
-
+        /**
+         * GenericService 可以匹配任何方法
+         * @see GenericService
+         */
         if (ProtocolUtils.isGeneric(generic)) {
             map.put(GENERIC_KEY, generic);
             map.put(METHODS_KEY, ANY_VALUE);
@@ -412,7 +500,10 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
             if (revision != null && revision.length() > 0) {
                 map.put(REVISION_KEY, revision);
             }
-
+            /**
+             * 接口中声明的方法
+             * @see ServiceConfig#methods(Class) 此时会生成这个服务的 Wrap 代理 
+             */
             String[] methods = methods(interfaceClass);
             if (methods.length == 0) {
                 logger.warn("No method found in service interface " + interfaceClass.getName());
@@ -516,12 +607,25 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
             name = DUBBO;
         }
 
-        // export service
+        // export service dubbo://192.168.105.110:20880/com.kanozz.service.KanoProvider?anyhost=true&application=kano&bind.ip=192.168.105.110&bind.port=20880&deprecated=false&dubbo=2.0.2&dynamic=true&environment=product&generic=false&interface=com.kanozz.service.KanoProvider&metadata-type=remote&methods=kano&pid=4302&release=&revision=1.0&side=provider&timestamp=1638168736444&version=1.0
         String host = findConfigedHosts(protocolConfig, registryURLs, params);
         Integer port = findConfigedPorts(protocolConfig, name, params);
+        /**
+         * dubbo://192.168.105.110:20880/com.kanozz.service.KanoProvider?
+         * anyhost=true&application=kano&bind.ip=192.168.105.110&bind.port=20880&deprecated=false&dubbo=2.0.2&dynamic=true&environment=product&generic=false&
+         * interface=com.kanozz.service.KanoProvider
+         * &metadata-type=remote&methods=kano&pid=4302&release=&revision=1.0&
+         * side=provider
+         * &timestamp=1638168736444&version=1.0
+         */
         URL url = new ServiceConfigURL(name, null, null, host, port, getContextPath(protocolConfig).map(p -> p + "/" + path).orElse(path), params);
 
         // You can customize Configurator to append extra parameters
+        /**
+         * 如果存在这个协议的扩展工厂那么需要调用
+         * 默认是没有的
+         * @see ConfiguratorFactory
+         */
         if (ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
                 .hasExtension(url.getProtocol())) {
             url = ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
@@ -532,17 +636,31 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
     }
 
     private void exportUrl(URL url, List<URL> registryURLs) {
+        /**
+         * 注册模型可以不配置
+         * 如果配置为 none 不会注册
+         */
         String scope = url.getParameter(SCOPE_KEY);
         // don't export when none is configured
         if (!SCOPE_NONE.equalsIgnoreCase(scope)) {
 
             // export to local if the config is not remote (export to remote only when config is remote)
+            /**
+             * 如果注册模型不是 remote 那么也会注册到本地
+             */
             if (!SCOPE_REMOTE.equalsIgnoreCase(scope)) {
                 exportLocal(url);
             }
 
             // export to remote if the config is not local (export to local only when config is local)
+            /**
+             * 注册模型不是本地那么会注册到远程注册中心上
+             */
             if (!SCOPE_LOCAL.equalsIgnoreCase(scope)) {
+                /**
+                 * 注册到远程注册中心
+                 * @see ServiceConfig#exportRemote(URL, List)
+                 */
                 url = exportRemote(url, registryURLs);
                 MetadataUtils.publishServiceDefinition(url);
             }
@@ -553,7 +671,17 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
 
     private URL exportRemote(URL url, List<URL> registryURLs) {
         if (CollectionUtils.isNotEmpty(registryURLs)) {
+            /**
+             * 此时还是 registry 协议 表示需要进行注册
+             * 一般会有注册的协议 registry:// 和 服务发现协议 service-discover-registry
+             *
+             * 此时 url 是 dubbo:// 注册到注册中心的协议
+             */
             for (URL registryURL : registryURLs) {
+                /**
+                 * 如果是服务发现协议的话,那么需要添加一个参数值
+                 * service-name-mapping = true
+                 */
                 if (SERVICE_REGISTRY_PROTOCOL.equals(registryURL.getProtocol())) {
                     url = url.addParameterIfAbsent(SERVICE_NAME_MAPPING_KEY, "true");
                 }
@@ -564,12 +692,18 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                 }
 
                 url = url.addParameterIfAbsent(DYNAMIC_KEY, registryURL.getParameter(DYNAMIC_KEY));
+                /**
+                 * TODO  监控协议
+                 */
                 URL monitorUrl = ConfigValidationUtils.loadMonitor(this, registryURL);
                 if (monitorUrl != null) {
                     url = url.putAttribute(MONITOR_KEY, monitorUrl);
                 }
 
                 // For providers, this is used to enable custom proxy to generate invoker
+                /**
+                 * 生成代理的方式
+                 */
                 String proxy = url.getParameter(PROXY_KEY);
                 if (StringUtils.isNotEmpty(proxy)) {
                     registryURL = registryURL.addParameter(PROXY_KEY, proxy);
@@ -582,7 +716,11 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                         logger.info("Export dubbo service " + interfaceClass.getName() + " to url " + url.getServiceKey());
                     }
                 }
-
+                /**
+                 * 此时相当于在 注册协议里面 添加了一个键值
+                 * export = 服务提供者使用的通信协议 dubbo://
+                 * @see ServiceConfig#doExportUrl(URL, boolean)
+                 */
                 doExportUrl(registryURL.putAttribute(EXPORT_KEY, url), true);
             }
 
@@ -605,10 +743,28 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void doExportUrl(URL url, boolean withMetaData) {
+        /**
+         * 默认为javassist生成的代理类
+         * 因为没有默认的adaptive实现
+         * @see org.apache.dubbo.rpc.ProxyFactory$Adaptive#getInvoker(Object, Class, URL) 
+         *
+         * 如果没有指定生成代理类的方式那么会使用默认的
+         * @see org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory#getInvoker(Object, Class, URL)
+         * 
+         * 最终调用
+         * @see org.apache.dubbo.rpc.proxy.AbstractProxyInvoker#doInvoke(Object, String, Class[], Object[])
+         * 实际调用的是之前生成的 Wrap
+         * @see ServiceConfig#buildAttributes(ProtocolConfig) 
+         * 
+         */
         Invoker<?> invoker = PROXY_FACTORY.getInvoker(ref, (Class) interfaceClass, url);
         if (withMetaData) {
             invoker = new DelegateProviderMetaDataInvoker(invoker, this);
         }
+        /**
+         * 默认生成的代理
+         * @see org.apache.dubbo.rpc.Protocol$Adaptive#export(Invoker)
+         */
         Exporter<?> exporter = PROTOCOL.export(invoker);
         exporters.add(exporter);
     }
@@ -618,11 +774,18 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
      * always export injvm
      */
     private void exportLocal(URL url) {
+        /**
+         * 构建注册本地的URL
+         * 此时协议为 injvm
+         */
         URL local = URLBuilder.from(url)
                 .setProtocol(LOCAL_PROTOCOL)
                 .setHost(LOCALHOST_VALUE)
                 .setPort(0)
                 .build();
+        /**
+         * 执行注册了逻辑
+         */
         doExportUrl(local, false);
         logger.info("Export dubbo service " + interfaceClass.getName() + " to local registry url : " + local);
     }
@@ -804,6 +967,11 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
     }
 
     private void postProcessConfig() {
+        /**
+         * 调用处理方法
+         * 目前没有任何实现
+         * @see ConfigPostProcessor#postProcessServiceConfig(ServiceConfig) 
+         */
         List<ConfigPostProcessor> configPostProcessors = ExtensionLoader.getExtensionLoader(ConfigPostProcessor.class)
                 .getActivateExtension(URL.valueOf("configPostProcessor://"), (String[]) null);
         configPostProcessors.forEach(component -> component.postProcessServiceConfig(this));

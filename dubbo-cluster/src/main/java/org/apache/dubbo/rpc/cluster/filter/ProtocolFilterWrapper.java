@@ -56,14 +56,33 @@ public class ProtocolFilterWrapper implements Protocol {
 
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
-        if (UrlUtils.isRegistry(invoker.getUrl())) {
+        /** 
+         * 注册的协议registry://
+         * 服务发现协议 service-discovery-registry 第一次进来肯定是这两个之一
+         *
+         * 处理注册协议的
+         * @see org.apache.dubbo.registry.integration.RegistryProtocol#export(Invoker)
+         *
+         */
+        if (UrlUtils.isRegistry(invoker.getUrl())) {   
             return protocol.export(invoker);
         }
+        /**
+         * 这个时候注册的就是通信协议而非注册协议了,但他此时处在注册协议的执行过程中
+         * @see org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper#export(Invoker)
+         * 最终调用的是
+         * @see org.apache.dubbo.rpc.protocol.dubbo.DubboProtocol#export(Invoker)
+         *
+         */
         return protocol.export(builder.buildInvokerChain(invoker, SERVICE_FILTER_KEY, CommonConstants.PROVIDER));
     }
 
     @Override
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
+        /**
+         * 第一次进来是注册协议
+         * @see org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper#refer(Class, URL)
+         */
         if (UrlUtils.isRegistry(url)) {
             return protocol.refer(type, url);
         }

@@ -79,6 +79,9 @@ public interface Configurator extends Comparable<Configurator> {
 
         List<Configurator> configurators = new ArrayList<>(urls.size());
         for (URL url : urls) {
+            /**
+             * empty协议 则清空所有 override 协议的配置
+             */
             if (EMPTY_PROTOCOL.equals(url.getProtocol())) {
                 configurators.clear();
                 break;
@@ -89,6 +92,15 @@ public interface Configurator extends Comparable<Configurator> {
             if (CollectionUtils.isEmptyMap(override)) {
                 continue;
             }
+            /**
+             * @see ConfiguratorFactory$Adaptive#getConfigurator(URL)
+             *
+             * 最终调用的
+             * @see org.apache.dubbo.rpc.cluster.configurator.override.OverrideConfiguratorFactory#getConfigurator(URL)
+             *
+             * 返回了
+             * @see org.apache.dubbo.rpc.cluster.configurator.override.OverrideConfigurator
+             */
             configurators.add(configuratorFactory.getConfigurator(url));
         }
         Collections.sort(configurators);

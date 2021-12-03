@@ -17,6 +17,7 @@
 package org.apache.dubbo.config.context;
 
 import org.apache.dubbo.common.config.CompositeConfiguration;
+import org.apache.dubbo.common.config.Environment;
 import org.apache.dubbo.common.context.FrameworkExt;
 import org.apache.dubbo.common.context.LifecycleAdapter;
 import org.apache.dubbo.common.extension.DisableInject;
@@ -110,7 +111,14 @@ public class ConfigManager extends LifecycleAdapter implements FrameworkExt {
 
     @Override
     public void initialize() throws IllegalStateException {
+        /**
+         * 获取所有的配置
+         * @see Environment#getConfiguration()
+         */
         CompositeConfiguration configuration = ApplicationModel.getEnvironment().getConfiguration();
+        /**
+         * 获取 dubbo.config.mode
+         */
         String configModeStr = (String) configuration.getProperty(DUBBO_CONFIG_MODE);
         try {
             if (StringUtils.hasText(configModeStr)) {
@@ -374,6 +382,11 @@ public class ConfigManager extends LifecycleAdapter implements FrameworkExt {
         serviceConfigs.forEach(this::addService);
     }
 
+    /**
+     * 各种配置都会注册到
+     * @see ConfigManager#configsCache
+     * 因此这里可以直接获取到当前注册的所有服务
+     */
     public Collection<ServiceConfigBase> getServices() {
         return getConfigs(getTagName(ServiceConfigBase.class));
     }
@@ -473,10 +486,21 @@ public class ConfigManager extends LifecycleAdapter implements FrameworkExt {
         if (config instanceof MethodConfig) {
             return null;
         }
-
+        /**
+         * KanoNameConfig -> kano-name
+         * KanoNameBean -> kano-name
+         * KanoNameConfigBase -> kano-name
+         * 每个类只会有一个因为是使用类名转换的
+         */
         Map<String, AbstractConfig> configsMap = configsCache.computeIfAbsent(getTagName(config.getClass()), type -> newMap());
 
         // fast check duplicated equivalent config before write lock
+        /**
+         * 如果不是
+         * @see ReferenceConfigBase 引用每个引用配置可能都不同
+         * @see ServiceConfigBase 服务每个服务配置可能都不同
+         * 那么就会遍历这个类的所有配置
+         */
         if (!(config instanceof ReferenceConfigBase || config instanceof ServiceConfigBase)) {
             for (AbstractConfig value : configsMap.values()) {
                 if (value.equals(config)) {
@@ -485,7 +509,10 @@ public class ConfigManager extends LifecycleAdapter implements FrameworkExt {
             }
         }
 
-        // lock by config type
+        // lock by config type'
+        /**
+         * 加入对应配置类里面
+         */
         synchronized (configsMap) {
             return (T) addIfAbsent(config, configsMap, unique);
         }
@@ -702,6 +729,10 @@ public class ConfigManager extends LifecycleAdapter implements FrameworkExt {
     private AbstractInterfaceConfig checkDuplicatedInterfaceConfig(AbstractInterfaceConfig config) {
         String uniqueServiceName;
         Map<String, AbstractInterfaceConfig> configCache;
+        /**
+         * 服务引用配置
+         * 那么会使用接口名作为唯一键
+         */
         if (config instanceof ReferenceConfigBase) {
             ReferenceConfigBase<?> referenceConfig = (ReferenceConfigBase<?>) config;
             uniqueServiceName = referenceConfig.getUniqueServiceName();

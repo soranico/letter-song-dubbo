@@ -29,6 +29,7 @@ import org.apache.dubbo.common.utils.CollectionUtils;
 import org.apache.dubbo.common.utils.NetUtils;
 import org.apache.dubbo.remoting.RemotingException;
 import org.apache.dubbo.remoting.TimeoutException;
+import org.apache.dubbo.remoting.exchange.support.DefaultFuture;
 import org.apache.dubbo.remoting.transport.CodecSupport;
 import org.apache.dubbo.rpc.AsyncRpcResult;
 import org.apache.dubbo.rpc.Invocation;
@@ -175,9 +176,20 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
         prepareInvocation(invocation);
 
         // do invoke rpc invocation and return async result
+        /**
+         * 此时是使用线程池发送了一个异步请求
+         * @see AbstractInvoker#doInvokeAndReturn(RpcInvocation)
+         */
         AsyncRpcResult asyncResult = doInvokeAndReturn(invocation);
 
         // wait rpc result if sync
+        /**
+         * 如果是同步的那么就需要阻塞等待执行结果
+         * 这里设置的是 int 最大值
+         * 但是不会阻塞那么久因为在发送之前
+         * 会设置一个定时任务
+         * @see DefaultFuture#newFuture(org.apache.dubbo.remoting.Channel, org.apache.dubbo.remoting.exchange.Request, int, java.util.concurrent.ExecutorService)
+         */
         waitForResultIfSync(asyncResult, invocation);
 
         return asyncResult;
@@ -230,6 +242,10 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
     private AsyncRpcResult doInvokeAndReturn(RpcInvocation invocation) {
         AsyncRpcResult asyncResult;
         try {
+            /**
+             * 发送异步请求
+             * @see org.apache.dubbo.rpc.protocol.dubbo.DubboInvoker#doInvoke(org.apache.dubbo.rpc.Invocation)
+             */
             asyncResult = (AsyncRpcResult) doInvoke(invocation);
         } catch (InvocationTargetException e) {
             Throwable te = e.getTargetException();
@@ -293,9 +309,16 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
     // -- Protected api
 
     protected ExecutorService getCallbackExecutor(URL url, Invocation inv) {
+
+        /**
+         * @see org.apache.dubbo.common.threadpool.manager.DefaultExecutorRepository#getExecutor(URL) 
+         */
         ExecutorService sharedExecutor = ExtensionLoader.getExtensionLoader(ExecutorRepository.class)
                 .getDefaultExtension()
                 .getExecutor(url);
+        /**
+         * 如果是同步请求那么就
+         */
         if (InvokeMode.SYNC == RpcUtils.getInvokeMode(getUrl(), inv)) {
             return new ThreadlessExecutor(sharedExecutor);
         } else {

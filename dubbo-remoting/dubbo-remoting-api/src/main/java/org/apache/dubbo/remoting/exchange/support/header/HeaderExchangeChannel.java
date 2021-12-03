@@ -132,6 +132,9 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         req.setData(request);
         DefaultFuture future = DefaultFuture.newFuture(channel, req, timeout, executor);
         try {
+            /**
+             * @see org.apache.dubbo.remoting.transport.netty4.NettyClient#send(Object) 
+             */
             channel.send(req);
         } catch (RemotingException e) {
             future.cancel();

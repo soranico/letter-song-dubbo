@@ -121,6 +121,9 @@ public class ZookeeperRegistry extends CacheableFailbackRegistry {
     @Override
     public void doRegister(URL url) {
         try {
+            /**
+             * 就是在 zk上创建一个节点
+             */
             zkClient.create(toUrlPath(url), url.getParameter(DYNAMIC_KEY, true));
         } catch (Throwable e) {
             throw new RpcException("Failed to register " + url + " to zookeeper " + getUrl() + ", cause: " + e.getMessage(), e);

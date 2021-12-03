@@ -43,6 +43,10 @@ public class ChannelHandlers {
     }
 
     protected ChannelHandler wrapInternal(ChannelHandler handler, URL url) {
+        /**
+         * 根据URL获取一个ChannelHandler
+         * @see org.apache.dubbo.remoting.Dispatcher$Adaptive#dispatch(ChannelHandler, URL)
+         */
         return new MultiMessageHandler(new HeartbeatHandler(ExtensionLoader.getExtensionLoader(Dispatcher.class)
                 .getAdaptiveExtension().dispatch(handler, url)));
     }

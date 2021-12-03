@@ -117,7 +117,10 @@ public abstract class Wrapper {
         if (c == Object.class) {
             return OBJECT_WRAPPER;
         }
-
+        /**
+         * 字符串拼接生成一个Wrap
+         * @see Wrapper#invokeMethod(Object, String, Class[], Object[])
+         */
         return WRAPPER_MAP.computeIfAbsent(c, Wrapper::makeWrapper);
     }
 
@@ -125,7 +128,7 @@ public abstract class Wrapper {
         if (c.isPrimitive()) {
             throw new IllegalArgumentException("Can not create wrapper for primitive type: " + c);
         }
-
+        // 类名
         String name = c.getName();
         ClassLoader cl = ClassUtils.getClassLoader(c);
 
@@ -182,6 +185,9 @@ public abstract class Wrapper {
             }
 
             c3.append(" try{");
+            /**
+             * 原始类中的方法
+             */
             for (Method m : methods) {
                 //ignore Object's method.
                 if (m.getDeclaringClass() == Object.class) {
@@ -267,6 +273,10 @@ public abstract class Wrapper {
         cc.addMethod("public String[] getPropertyNames(){ return pns; }");
         cc.addMethod("public boolean hasProperty(String n){ return pts.containsKey($1); }");
         cc.addMethod("public Class getPropertyType(String n){ return (Class)pts.get($1); }");
+        /**
+         * 返回的是原始类的方法
+         * @see Wrapper#getMethodNames()
+         */
         cc.addMethod("public String[] getMethodNames(){ return mns; }");
         cc.addMethod("public String[] getDeclaredMethodNames(){ return dmns; }");
         cc.addMethod(c1.toString());

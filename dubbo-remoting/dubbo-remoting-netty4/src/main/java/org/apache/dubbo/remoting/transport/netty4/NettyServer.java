@@ -16,6 +16,7 @@
  */
 package org.apache.dubbo.remoting.transport.netty4;
 
+import io.netty.channel.*;
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.logger.Logger;
 import org.apache.dubbo.common.logger.LoggerFactory;
@@ -33,10 +34,6 @@ import org.apache.dubbo.remoting.utils.UrlUtils;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 
@@ -77,6 +74,10 @@ public class NettyServer extends AbstractServer implements RemotingServer {
     public NettyServer(URL url, ChannelHandler handler) throws RemotingException {
         // you can customize name and type of client thread pool by THREAD_NAME_KEY and THREADPOOL_KEY in CommonConstants.
         // the handler will be wrapped: MultiMessageHandler->HeartbeatHandler->handler
+        /**
+         * 对Handler进行封装
+         * @see ChannelHandlers#wrapInternal(ChannelHandler, URL)
+         */
         super(ExecutorUtil.setThreadName(url, SERVER_THREAD_POOL_NAME), ChannelHandlers.wrap(handler, url));
     }
 
@@ -88,12 +89,19 @@ public class NettyServer extends AbstractServer implements RemotingServer {
     @Override
     protected void doOpen() throws Throwable {
         bootstrap = new ServerBootstrap();
-
+        /**
+         * 接收连接线程为1
+         */
         bossGroup = NettyEventLoopFactory.eventLoopGroup(1, "NettyServerBoss");
+        /**
+         * io线程默认为 核心+1,最大为32
+         */
         workerGroup = NettyEventLoopFactory.eventLoopGroup(
                 getUrl().getPositiveParameter(IO_THREADS_KEY, Constants.DEFAULT_IO_THREADS),
                 "NettyServerWorker");
-
+        /**
+         * 这个Handler继承了 inbound
+         */
         final NettyServerHandler nettyServerHandler = new NettyServerHandler(getUrl(), this);
         channels = nettyServerHandler.getChannels();
 
@@ -104,7 +112,9 @@ public class NettyServer extends AbstractServer implements RemotingServer {
                 .option(ChannelOption.SO_REUSEADDR, Boolean.TRUE)
                 .childOption(ChannelOption.TCP_NODELAY, Boolean.TRUE)
                 .childOption(ChannelOption.SO_KEEPALIVE, keepalive)
+                /** 默认池化内存分配 */
                 .childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
+                /** 这个会在客户端连接后进行调用也就是给客户端的channel添加处理的handler */
                 .childHandler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     protected void initChannel(SocketChannel ch) throws Exception {
@@ -114,6 +124,10 @@ public class NettyServer extends AbstractServer implements RemotingServer {
                         if (getUrl().getParameter(SSL_ENABLED_KEY, false)) {
                             ch.pipeline().addLast("negotiation", new SslServerTlsHandler(getUrl()));
                         }
+                        /**
+                         * 编解码后最后调用的
+                         * @see NettyServerHandler#channelRead(ChannelHandlerContext, Object)
+                         */
                         ch.pipeline()
                                 .addLast("decoder", adapter.getDecoder())
                                 .addLast("encoder", adapter.getEncoder())

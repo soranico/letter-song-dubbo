@@ -32,30 +32,8 @@ import org.apache.dubbo.common.utils.ArrayUtils;
 import org.apache.dubbo.common.utils.CollectionUtils;
 import org.apache.dubbo.common.utils.ConfigUtils;
 import org.apache.dubbo.common.utils.StringUtils;
-import org.apache.dubbo.config.AbstractConfig;
-import org.apache.dubbo.config.ApplicationConfig;
-import org.apache.dubbo.config.ConfigCenterConfig;
-import org.apache.dubbo.config.ConsumerConfig;
-import org.apache.dubbo.config.DubboShutdownHook;
-import org.apache.dubbo.config.MetadataReportConfig;
-import org.apache.dubbo.config.MetricsConfig;
-import org.apache.dubbo.config.ModuleConfig;
-import org.apache.dubbo.config.MonitorConfig;
-import org.apache.dubbo.config.ProtocolConfig;
-import org.apache.dubbo.config.ProviderConfig;
-import org.apache.dubbo.config.ReferenceConfig;
-import org.apache.dubbo.config.ReferenceConfigBase;
-import org.apache.dubbo.config.RegistryConfig;
-import org.apache.dubbo.config.ServiceConfig;
-import org.apache.dubbo.config.ServiceConfigBase;
-import org.apache.dubbo.config.SslConfig;
-import org.apache.dubbo.config.bootstrap.builders.ApplicationBuilder;
-import org.apache.dubbo.config.bootstrap.builders.ConsumerBuilder;
-import org.apache.dubbo.config.bootstrap.builders.ProtocolBuilder;
-import org.apache.dubbo.config.bootstrap.builders.ProviderBuilder;
-import org.apache.dubbo.config.bootstrap.builders.ReferenceBuilder;
-import org.apache.dubbo.config.bootstrap.builders.RegistryBuilder;
-import org.apache.dubbo.config.bootstrap.builders.ServiceBuilder;
+import org.apache.dubbo.config.*;
+import org.apache.dubbo.config.bootstrap.builders.*;
 import org.apache.dubbo.config.context.ConfigManager;
 import org.apache.dubbo.config.metadata.ConfigurableMetadataServiceExporter;
 import org.apache.dubbo.config.utils.ConfigValidationUtils;
@@ -77,15 +55,7 @@ import org.apache.dubbo.rpc.Protocol;
 import org.apache.dubbo.rpc.model.ApplicationModel;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -102,10 +72,7 @@ import static java.util.Collections.singletonList;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static org.apache.dubbo.common.config.ConfigurationUtils.parseProperties;
 import static org.apache.dubbo.common.config.configcenter.DynamicConfigurationFactory.getDynamicConfigurationFactory;
-import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_METADATA_STORAGE_TYPE;
-import static org.apache.dubbo.common.constants.CommonConstants.DUBBO;
-import static org.apache.dubbo.common.constants.CommonConstants.REGISTRY_SPLIT_PATTERN;
-import static org.apache.dubbo.common.constants.CommonConstants.REMOTE_METADATA_STORAGE_TYPE;
+import static org.apache.dubbo.common.constants.CommonConstants.*;
 import static org.apache.dubbo.common.extension.ExtensionLoader.getExtensionLoader;
 import static org.apache.dubbo.common.function.ThrowableAction.execute;
 import static org.apache.dubbo.common.utils.StringUtils.isEmpty;
@@ -204,6 +171,11 @@ public class DubboBootstrap {
      */
     public static DubboBootstrap getInstance() {
         if (instance == null) {
+            /**
+             * 创建一个单例
+             * 这个对象里面注册了关闭的回调时间
+             * 和全部配置的存放地址
+             */
             synchronized (DubboBootstrap.class) {
                 if (instance == null) {
                     instance = new DubboBootstrap();
@@ -252,8 +224,17 @@ public class DubboBootstrap {
     private DubboBootstrap() {
         configManager = ApplicationModel.getConfigManager();
         environment = ApplicationModel.getEnvironment();
-        // 注册停止回调
+        /**
+         * 注册服务停止回调事件
+         * @see DubboShutdownHook
+         * 添加到
+         * @see Runtime#addShutdownHook(Thread) jvm停止前会执行
+         */
         DubboShutdownHook.getDubboShutdownHook().register();
+        /**
+         * 添加销毁回调
+         * @see DubboBootstrap#destroy()
+         */
         ShutdownHookCallbacks.INSTANCE.addCallback(DubboBootstrap.this::destroy);
     }
 
@@ -301,6 +282,10 @@ public class DubboBootstrap {
      * @return current {@link DubboBootstrap} instance
      */
     public DubboBootstrap application(String name) {
+        /**
+         * 设置 应用级别的配置
+         * @see ApplicationConfig 的name
+         */
         return application(name, builder -> {
             // DO NOTHING
         });
@@ -326,6 +311,7 @@ public class DubboBootstrap {
      * @return current {@link DubboBootstrap} instance
      */
     public DubboBootstrap application(ApplicationConfig applicationConfig) {
+
         configManager.setApplication(applicationConfig);
         return this;
     }
@@ -553,12 +539,20 @@ public class DubboBootstrap {
      * Initialize
      */
     public synchronized void initialize() {
+        /**
+         * 保证只进行一次初始化
+         */
         if (!initialized.compareAndSet(false, true)) {
             return;
         }
-
+        /**
+         * 初始化各种配置
+         */
         ApplicationModel.initFrameworkExts();
-
+        /**
+         * 启动配置中心
+         * @see DubboBootstrap#startConfigCenter()
+         */
         startConfigCenter();
 
         loadConfigsFromProps();
@@ -1105,17 +1099,27 @@ public class DubboBootstrap {
 
         isCurrentlyInStart = true;
         try {
+            /**
+             * cas 保证只进行一次启动
+             */
             if (started.compareAndSet(false, true)) {
                 startup.set(false);
                 shutdown.set(false);
                 awaited.set(false);
-
+                /**
+                 * 进行配置的初始化
+                 * @see DubboBootstrap#initialize()
+                 *
+                 */
                 initialize();
 
                 if (logger.isInfoEnabled()) {
                     logger.info(NAME + " is starting...");
                 }
-
+                /**
+                 * 进行服务的发布
+                 * @see DubboBootstrap#doStart()
+                 */
                 doStart();
 
                 if (logger.isInfoEnabled()) {
@@ -1140,6 +1144,10 @@ public class DubboBootstrap {
 
     private void doStart() {
         // 1. export Dubbo Services
+        /**
+         * 发布服务
+         * @see DubboBootstrap#exportServices()
+         */
         exportServices();
 
         // If register consumer instance or has exported services
@@ -1149,7 +1157,10 @@ public class DubboBootstrap {
             // 3. Register the local ServiceInstance if required
             registerServiceInstance();
         }
-
+        /**
+         * 引用服务
+         * @see DubboBootstrap#referServices()
+         */
         referServices();
 
         // wait async export / refer finish if needed
@@ -1382,16 +1393,33 @@ public class DubboBootstrap {
     }
 
     private void exportServices() {
+        /**
+         * 迭代所有注册的服务
+         * @see ConfigManager#getServices()
+         * 这个是每个bean在回调方法注册进来的
+         * @see org.apache.dubbo.config.spring.ServiceBean#afterPropertiesSet()
+         */
         for (ServiceConfigBase sc : configManager.getServices()) {
             // TODO, compatible with ServiceConfig.export()
             ServiceConfig<?> serviceConfig = (ServiceConfig<?>) sc;
             serviceConfig.setBootstrap(this);
+            /**
+             * 当前服务没有刷新那么需要进行刷新
+             * @see ServiceConfigBase#isRefreshed()
+             */
             if (!serviceConfig.isRefreshed()) {
+                /**
+                 * 进行刷新
+                 * @see org.apache.dubbo.config.spring.ServiceBean#refresh()
+                 */
                 serviceConfig.refresh();
             }
             if (sc.isExported()) {
                 continue;
             }
+            /**
+             * 需要异步进行发布
+             */
             if (sc.shouldExportAsync()) {
                 ExecutorService executor = executorRepository.getServiceExportExecutor();
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
@@ -1407,7 +1435,15 @@ public class DubboBootstrap {
 
                 asyncExportingFutures.add(future);
             } else {
+                /**
+                 * 服务没有发布那么久进行发布
+                 * @see org.apache.dubbo.config.spring.ServiceBean#isExported()
+                 */
                 if (!sc.isExported()) {
+                    /**
+                     * 发布服务
+                     * @see org.apache.dubbo.config.spring.ServiceBean#export()
+                     */
                     sc.export();
                     exportedServices.add(sc);
                 }
@@ -1432,9 +1468,15 @@ public class DubboBootstrap {
 
     private void referServices() {
         if (cache == null) {
+            /**
+             * 根据名字获取一个
+             * @see ReferenceConfigCache
+             */
             cache = ReferenceConfigCache.getCache();
         }
-
+        /**
+         * 迭代每个消费者进行注册
+         */
         configManager.getReferences().forEach(rc -> {
             // TODO, compatible with  ReferenceConfig.refer()
             ReferenceConfig<?> referenceConfig = (ReferenceConfig<?>) rc;
@@ -1456,6 +1498,10 @@ public class DubboBootstrap {
 
                     asyncReferringFutures.add(future);
                 } else {
+                    /**
+                     * 进行
+                     * @see ReferenceConfigCache#get(ReferenceConfigBase)
+                     */
                     cache.get(rc);
                 }
             }

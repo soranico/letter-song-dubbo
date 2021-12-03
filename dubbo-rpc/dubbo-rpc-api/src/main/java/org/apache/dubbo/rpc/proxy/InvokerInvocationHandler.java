@@ -19,10 +19,7 @@ package org.apache.dubbo.rpc.proxy;
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.logger.Logger;
 import org.apache.dubbo.common.logger.LoggerFactory;
-import org.apache.dubbo.rpc.Constants;
-import org.apache.dubbo.rpc.Invoker;
-import org.apache.dubbo.rpc.RpcInvocation;
-import org.apache.dubbo.rpc.RpcServiceContext;
+import org.apache.dubbo.rpc.*;
 import org.apache.dubbo.rpc.model.ApplicationModel;
 import org.apache.dubbo.rpc.model.ConsumerModel;
 
@@ -91,7 +88,9 @@ public class InvokerInvocationHandler implements InvocationHandler {
             rpcInvocation.put(Constants.CONSUMER_MODEL, consumerModel);
             rpcInvocation.put(Constants.METHOD_MODEL, consumerModel.getMethodModel(method));
         }
-
+        /**
+         * @see org.apache.dubbo.registry.client.migration.MigrationInvoker#invoke(Invocation) 
+         */
         return invoker.invoke(rpcInvocation).recreate();
     }
 }

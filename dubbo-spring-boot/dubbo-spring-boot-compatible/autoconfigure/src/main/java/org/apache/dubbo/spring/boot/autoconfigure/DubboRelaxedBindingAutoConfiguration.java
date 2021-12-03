@@ -45,6 +45,10 @@ import static org.springframework.beans.factory.config.ConfigurableBeanFactory.S
 @Configuration
 public class DubboRelaxedBindingAutoConfiguration {
 
+    DubboRelaxedBindingAutoConfiguration(){
+
+    }
+
     public PropertyResolver dubboScanBasePackagesPropertyResolver(Environment environment) {
         return new RelaxedPropertyResolver(environment, DUBBO_SCAN_PREFIX);
     }

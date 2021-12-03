@@ -63,9 +63,16 @@ public class StubProxyFactoryWrapper implements ProxyFactory {
 
     @Override
     public <T> T getProxy(Invoker<T> invoker, boolean generic) throws RpcException {
+        /**
+         * @see org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory#getProxy(Invoker, boolean)
+         * 生成代理对象
+         */
         T proxy = proxyFactory.getProxy(invoker, generic);
         if (GenericService.class != invoker.getInterface()) {
             URL url = invoker.getUrl();
+            /**
+             * 存在stub的话
+             */
             String stub = url.getParameter(STUB_KEY, url.getParameter(LOCAL_KEY));
             if (ConfigUtils.isNotEmpty(stub)) {
                 Class<?> serviceType = invoker.getInterface();
@@ -82,6 +89,10 @@ public class StubProxyFactoryWrapper implements ProxyFactory {
                         throw new IllegalStateException("The stub implementation class " + stubClass.getName() + " not implement interface " + serviceType.getName());
                     }
                     try {
+                        /**
+                         * 找到stub的类并且将代理类传入
+                         * 然后重新生成一个实例
+                         */
                         Constructor<?> constructor = ReflectUtils.findConstructor(stubClass, serviceType);
                         proxy = (T) constructor.newInstance(new Object[]{proxy});
                         //export stub service
@@ -116,6 +127,9 @@ public class StubProxyFactoryWrapper implements ProxyFactory {
 
     @Override
     public <T> Invoker<T> getInvoker(T proxy, Class<T> type, URL url) throws RpcException {
+        /**
+         * @see org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory#getInvoker(Object, Class, URL)
+         */
         return proxyFactory.getInvoker(proxy, type, url);
     }
 

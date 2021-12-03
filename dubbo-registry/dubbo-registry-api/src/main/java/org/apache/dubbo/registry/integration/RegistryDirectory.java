@@ -39,7 +39,9 @@ import org.apache.dubbo.rpc.Protocol;
 import org.apache.dubbo.rpc.RpcException;
 import org.apache.dubbo.rpc.cluster.Configurator;
 import org.apache.dubbo.rpc.cluster.Router;
+import org.apache.dubbo.rpc.cluster.RouterFactory$Adaptive;
 import org.apache.dubbo.rpc.cluster.directory.StaticDirectory;
+import org.apache.dubbo.rpc.cluster.router.condition.ConditionRouterFactory;
 import org.apache.dubbo.rpc.cluster.support.ClusterUtils;
 import org.apache.dubbo.rpc.model.ApplicationModel;
 
@@ -115,6 +117,11 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
         registry.unsubscribe(url, this);
     }
 
+    /**
+     * 消费端会监控 provider routers configurators 三个目录
+     * 当里面节点发生变更的时候回触发监听最终走到这个里面
+     * 刷新本地缓存
+     */
     @Override
     public synchronized void notify(List<URL> urls) {
         if (isDestroyed()) {
@@ -127,10 +134,21 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
                 .filter(this::isNotCompatibleFor26x)
                 .collect(Collectors.groupingBy(this::judgeCategory));
 
+        /**
+         * configurators
+         * 这个里面一般是 override:// 更新配置
+         * 或者 empty:// 清空配置
+         * @see Configurator#toConfigurators(List) 转为配置
+         */
         List<URL> configuratorURLs = categoryUrls.getOrDefault(CONFIGURATORS_CATEGORY, Collections.emptyList());
         this.configurators = Configurator.toConfigurators(configuratorURLs).orElse(this.configurators);
 
+        /**
+         * 处理 router 协议
+         * @see RegistryDirectory#toRouters(List)
+         */
         List<URL> routerURLs = categoryUrls.getOrDefault(ROUTERS_CATEGORY, Collections.emptyList());
+
         toRouters(routerURLs).ifPresent(this::addRouters);
 
         // providers
@@ -277,14 +295,31 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
 
         List<Router> routers = new ArrayList<>();
         for (URL url : urls) {
+            /**
+             * 忽略 empty 协议
+             * 对于 configuration 节点下
+             * 如果有 empty 协议那么override协议会全部清除
+             * 对于 router 而言只是忽略 empty
+             */
             if (EMPTY_PROTOCOL.equals(url.getProtocol())) {
                 continue;
             }
             String routerType = url.getParameter(ROUTER_KEY);
+            /**
+             * 设置真正的协议头
+             */
             if (routerType != null && routerType.length() > 0) {
                 url = url.setProtocol(routerType);
             }
             try {
+                /**
+                 * @see RouterFactory$Adaptive#getRouter(URL)
+                 *
+                 * 比如真实调用的是
+                 * @see ConditionRouterFactory#getRouter(URL)
+                 * 最终返回的是,在构造方法里面完成了条件的初始化
+                 * @see org.apache.dubbo.rpc.cluster.router.condition.ConditionRouter#ConditionRouter(URL)
+                 */
                 Router router = ROUTER_FACTORY.getRouter(url);
                 if (!routers.contains(router)) {
                     routers.add(router);

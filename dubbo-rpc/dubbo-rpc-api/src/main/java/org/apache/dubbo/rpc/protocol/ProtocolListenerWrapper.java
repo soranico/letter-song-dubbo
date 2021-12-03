@@ -61,8 +61,15 @@ public class ProtocolListenerWrapper implements Protocol {
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
         if (UrlUtils.isRegistry(invoker.getUrl())) {
+            /**
+             * @see org.apache.dubbo.registry.integration.RegistryProtocol#export(org.apache.dubbo.rpc.Invoker)
+             */
             return protocol.export(invoker);
         }
+        /**
+         * 调用具体协议进行发布
+         * @see org.apache.dubbo.rpc.protocol.dubbo.DubboProtocol#export(org.apache.dubbo.rpc.Invoker)
+         */
         return new ListenerExporterWrapper<T>(protocol.export(invoker),
                 Collections.unmodifiableList(ExtensionLoader.getExtensionLoader(ExporterListener.class)
                         .getActivateExtension(invoker.getUrl(), EXPORTER_LISTENER_KEY)));
@@ -70,6 +77,10 @@ public class ProtocolListenerWrapper implements Protocol {
 
     @Override
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
+        /**
+         * 处理注册协议
+         * @see org.apache.dubbo.registry.integration.RegistryProtocol#refer(java.lang.Class, org.apache.dubbo.common.URL)
+         */
         if (UrlUtils.isRegistry(url)) {
             return protocol.refer(type, url);
         }

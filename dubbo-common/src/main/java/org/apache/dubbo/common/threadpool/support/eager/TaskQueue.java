@@ -47,14 +47,26 @@ public class TaskQueue<R extends Runnable> extends LinkedBlockingQueue<Runnable>
         if (executor == null) {
             throw new RejectedExecutionException("The task queue does not have executor!");
         }
-
+        /**
+         * 当前线程池线程数
+         */
         int currentPoolThreadSize = executor.getPoolSize();
         // have free worker. put task into queue to let the worker deal with task.
+        /**
+         * 如果提交的任务数量少于线程数
+         * 说明存在空闲线程直接提交到队列中
+         * 执行即可
+         */
         if (executor.getSubmittedTaskCount() < currentPoolThreadSize) {
             return super.offer(runnable);
         }
 
         // return false to let executor create new worker.
+        /**
+         * 说明没有空闲线程了,但是最大线程数没有达到
+         * 那么创建新的线程来执行
+         * 也就是尽量避免入队,让任务立即执行
+         */
         if (currentPoolThreadSize < executor.getMaximumPoolSize()) {
             return false;
         }

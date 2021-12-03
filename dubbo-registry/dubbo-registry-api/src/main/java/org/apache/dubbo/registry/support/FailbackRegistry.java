@@ -18,6 +18,7 @@ package org.apache.dubbo.registry.support;
 
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.timer.HashedWheelTimer;
+import org.apache.dubbo.common.timer.Timeout;
 import org.apache.dubbo.common.utils.CollectionUtils;
 import org.apache.dubbo.common.utils.NamedThreadFactory;
 import org.apache.dubbo.registry.NotifyListener;
@@ -197,16 +198,35 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             logger.info("URL " + url + " will not be registered to Registry. Registry " + url + " does not accept service of this protocol type.");
             return;
         }
+        /**
+         * 添加到父类的注册集合中
+         * @see AbstractRegistry#registered
+         */
         super.register(url);
+        /**
+         * 注册失败任务取消因为重新注册了
+         * 那么这个任务就没有必要执行了
+         */
         removeFailedRegistered(url);
+        /**
+         * 取消注册任务也需要进行取消
+         * 因为当前在注册过程中
+         */
         removeFailedUnregistered(url);
         try {
             // Sending a registration request to the server side
+            /**
+             * @see org.apache.dubbo.registry.zookeeper.ZookeeperRegistry#doRegister(URL) 
+             */
             doRegister(url);
         } catch (Exception e) {
             Throwable t = e;
 
             // If the startup detection is opened, the Exception is thrown directly.
+            /**
+             * 如果配置了 check = true
+             * 那么注册失败会抛出异常
+             */
             boolean check = getUrl().getParameter(Constants.CHECK_KEY, true)
                     && url.getParameter(Constants.CHECK_KEY, true)
                     && !(url.getPort() == 0);
@@ -221,6 +241,14 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             }
 
             // Record a failed registration request to a failed list, retry regularly
+            /**
+             * 注册失败了如果之前没有重试的任务
+             * 会创建一个重试任务
+             * 运用时间轮进行任务的调用
+             * @see FailedRegisteredTask#doRetry(URL, FailbackRegistry, Timeout)
+             * 时间轮转
+             * @see HashedWheelTimer.Worker 执行任务
+             */
             addFailedRegistered(url);
         }
     }
