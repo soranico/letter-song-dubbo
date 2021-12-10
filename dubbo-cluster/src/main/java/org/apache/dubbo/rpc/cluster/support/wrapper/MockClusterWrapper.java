@@ -35,6 +35,17 @@ public class MockClusterWrapper implements Cluster {
 
     @Override
     public <T> Invoker<T> join(Directory<T> directory) throws RpcException {
+        /**
+         * 默认是重试的
+         * @see org.apache.dubbo.rpc.cluster.support.FailoverCluster#join(Directory)
+         *
+         * 这个返回的是一个包含过滤器的Invoker
+         * 默认是
+         * @see org.apache.dubbo.rpc.cluster.support.wrapper.AbstractCluster.ClusterFilterInvoker
+         *
+         * 如果存在自定义的过滤器,那么返回的是
+         * @see org.apache.dubbo.rpc.cluster.support.wrapper.AbstractCluster.InvocationInterceptorInvoker
+         */
         return new MockClusterInvoker<T>(directory,
                 this.cluster.join(directory));
     }

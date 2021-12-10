@@ -81,8 +81,20 @@ public abstract class AbstractProxyInvoker<T> implements Invoker<T> {
     @Override
     public Result invoke(Invocation invocation) throws RpcException {
         try {
+            /**
+             * @see org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory#getInvoker(Object, Class, URL)
+             * 最终调用的是生成的Wrapper代理类,获取返回值
+             */
             Object value = doInvoke(proxy, invocation.getMethodName(), invocation.getParameterTypes(), invocation.getArguments());
+            /**
+             * 将返回结果封装为一个 future
+             * 如果返回结果本身就是一个Future的话
+             * 表明方法处理是一个异步的
+             */
             CompletableFuture<Object> future = wrapWithFuture(value);
+            /**
+             * 设置回调方法
+             */
             CompletableFuture<AppResponse> appResponseFuture = future.handle((obj, t) -> {
                 AppResponse result = new AppResponse(invocation);
                 if (t != null) {
@@ -110,9 +122,16 @@ public abstract class AbstractProxyInvoker<T> implements Invoker<T> {
     private CompletableFuture<Object> wrapWithFuture(Object value) {
         if (RpcContext.getServiceContext().isAsyncStarted()) {
             return ((AsyncContextImpl)(RpcContext.getServiceContext().getAsyncContext())).getInternalFuture();
-        } else if (value instanceof CompletableFuture) {
+        }
+        /**
+         * 方法本身返回的就是一个Future
+         */
+        else if (value instanceof CompletableFuture) {
             return (CompletableFuture<Object>) value;
         }
+        /**
+         * 创建一个 Future
+         */
         return CompletableFuture.completedFuture(value);
     }
 

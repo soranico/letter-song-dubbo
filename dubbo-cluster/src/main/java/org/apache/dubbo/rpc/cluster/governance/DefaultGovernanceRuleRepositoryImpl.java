@@ -25,6 +25,10 @@ public class DefaultGovernanceRuleRepositoryImpl implements GovernanceRuleReposi
     @Override
     public void addListener(String key, String group, ConfigurationListener listener) {
         DynamicConfiguration dynamicConfiguration = getDynamicConfiguration();
+        /**
+         * @see org.apache.dubbo.common.config.configcenter.wrapper.CompositeDynamicConfiguration#addListener(String, String, ConfigurationListener)  
+         * 注册到对应的注册中心的事件监听机制里面 
+         */
         if (dynamicConfiguration != null) {
             dynamicConfiguration.addListener(key, group, listener);
         }
@@ -41,7 +45,7 @@ public class DefaultGovernanceRuleRepositoryImpl implements GovernanceRuleReposi
     @Override
     public String getRule(String key, String group, long timeout) throws IllegalStateException {
         DynamicConfiguration dynamicConfiguration = getDynamicConfiguration();
-        if (dynamicConfiguration != null) {
+        if (dynamicConfiguration != null) {/** @see org.apache.dubbo.configcenter.support.zookeeper.ZookeeperDynamicConfiguration#getConfig(String, String, long) */
             return dynamicConfiguration.getConfig(key, group, timeout);
         }
         return null;

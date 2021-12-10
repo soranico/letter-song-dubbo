@@ -20,6 +20,7 @@ import org.apache.dubbo.common.logger.Logger;
 import org.apache.dubbo.common.logger.LoggerFactory;
 import org.apache.dubbo.rpc.Exporter;
 import org.apache.dubbo.rpc.Invoker;
+import org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory;
 
 /**
  * AbstractExporter.
@@ -28,6 +29,17 @@ public abstract class AbstractExporter<T> implements Exporter<T> {
 
     protected final Logger logger = LoggerFactory.getLogger(getClass());
 
+    /**
+     * 默认是
+     * @see
+     * @see org.apache.dubbo.registry.integration.RegistryProtocol.InvokerDelegate
+     * 里面是
+     * @see org.apache.dubbo.config.invoker.DelegateProviderMetaDataInvoker
+     *
+     * 最终会调用到生成的一个匿名内部类里面
+     * @see JavassistProxyFactory#getInvoker(java.lang.Object, java.lang.Class, org.apache.dubbo.common.URL)
+     *
+     */
     private final Invoker<T> invoker;
 
     private volatile boolean unexported = false;

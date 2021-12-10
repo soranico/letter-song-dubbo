@@ -47,6 +47,9 @@ public interface FilterChainBuilder {
      */
     class FilterChainNode<T, TYPE extends Invoker<T>, FILTER extends BaseFilter> implements Invoker<T>{
         TYPE originalInvoker;
+        /**
+         * 拦截链中下一个需要执行的ChainNode
+         */
         Invoker<T> nextNode;
         FILTER filter;
 
@@ -80,7 +83,15 @@ public interface FilterChainBuilder {
             Result asyncResult;
             try {
                 /**
-                 * @see org.apache.dubbo.rpc.cluster.filter.support.ConsumerContextFilter#invoke(Invoker, Invocation) 
+                 * 先调用过滤器的逻辑
+                 * @see org.apache.dubbo.rpc.cluster.filter.support.ConsumerContextFilter#invoke(Invoker, Invocation)
+                 *
+                 * 过滤器的逻辑执行完之后 必须必须 手动调用传入的 nextNode.invoker()
+                 * 将调用传递下去,否则调用会终止
+                 *
+                 * 拦截器执行完 最终会调用到真正执行请求,默认是dubbo
+                 * @see org.apache.dubbo.rpc.protocol.dubbo.DubboInvoker#invoke(Invocation) 
+                 *
                  */
                 asyncResult = filter.invoke(nextNode, invocation);
             } catch (Exception e) {

@@ -25,6 +25,7 @@ import org.apache.dubbo.common.utils.UrlUtils;
 import org.apache.dubbo.registry.NotifyListener;
 import org.apache.dubbo.registry.RegistryNotifier;
 import org.apache.dubbo.registry.support.CacheableFailbackRegistry;
+import org.apache.dubbo.registry.support.FailbackRegistry;
 import org.apache.dubbo.remoting.Constants;
 import org.apache.dubbo.remoting.zookeeper.ChildListener;
 import org.apache.dubbo.remoting.zookeeper.StateListener;
@@ -62,8 +63,15 @@ public class ZookeeperRegistry extends CacheableFailbackRegistry {
 
     private final String root;
 
+    /**
+     * 服务集合
+     */
     private final Set<String> anyServices = new ConcurrentHashSet<>();
 
+    /**
+     * 放的是URL和监听器的映射,NotifyListener 一般是这个
+     * @see org.apache.dubbo.registry.integration.RegistryDirectory
+     */
     private final ConcurrentMap<URL, ConcurrentMap<NotifyListener, ChildListener>> zkListeners = new ConcurrentHashMap<>();
 
     private final ZookeeperClient zkClient;
@@ -73,11 +81,17 @@ public class ZookeeperRegistry extends CacheableFailbackRegistry {
         if (url.isAnyHost()) {
             throw new IllegalStateException("registry address == null");
         }
+        /**
+         * zk上的根目录
+         */
         String group = url.getGroup(DEFAULT_ROOT);
         if (!group.startsWith(PATH_SEPARATOR)) {
             group = PATH_SEPARATOR + group;
         }
         this.root = group;
+        /**
+         * 获取通信的客户端
+         */
         zkClient = zookeeperTransporter.connect(url);
         zkClient.addStateListener((state) -> {
             if (state == StateListener.RECONNECTED) {
@@ -88,6 +102,10 @@ public class ZookeeperRegistry extends CacheableFailbackRegistry {
             } else if (state == StateListener.NEW_SESSION_CREATED) {
                 logger.warn("Trying to re-register urls and re-subscribe listeners of this instance to registry...");
                 try {
+                    /**
+                     * 如果是和注册中心新建的一个连接
+                     * 那么需要从本地文件中恢复配置
+                     */
                     ZookeeperRegistry.this.recover();
                 } catch (Exception e) {
                     logger.error(e.getMessage(), e);
@@ -142,12 +160,17 @@ public class ZookeeperRegistry extends CacheableFailbackRegistry {
     @Override
     public void doSubscribe(final URL url, final NotifyListener listener) {
         try {
+            /** 所有都监听 */
             if (ANY_VALUE.equals(url.getServiceInterface())) {
                 String root = toRootPath();
                 ConcurrentMap<NotifyListener, ChildListener> listeners = zkListeners.computeIfAbsent(url, k -> new ConcurrentHashMap<>());
                 ChildListener zkListener = listeners.computeIfAbsent(listener, k -> (parentPath, currentChilds) -> {
                     for (String child : currentChilds) {
                         child = URL.decode(child);
+                        /**
+                         * 如果当前没有订阅这个节点
+                         * 那么就订阅这个节点
+                         */
                         if (!anyServices.contains(child)) {
                             anyServices.add(child);
                             subscribe(url.setPath(child).addParameters(INTERFACE_KEY, child,
@@ -165,21 +188,58 @@ public class ZookeeperRegistry extends CacheableFailbackRegistry {
                                 Constants.CHECK_KEY, String.valueOf(false)), listener);
                     }
                 }
-            } else {
+            }
+
+            /** 监听指定接口的 */
+            else {
                 CountDownLatch latch = new CountDownLatch(1);
                 List<URL> urls = new ArrayList<>();
+                /**
+                 * 将URL中的category属性都转为具体的订阅路径
+                 * e.g
+                 * /dubbo/接口/provider
+                 */
                 for (String path : toCategoriesPath(url)) {
+                    /**
+                     * URL和监听器的映射
+                     */
                     ConcurrentMap<NotifyListener, ChildListener> listeners = zkListeners.computeIfAbsent(url, k -> new ConcurrentHashMap<>());
+
+                    /**
+                     * 内部的监听器 和 真实注册中心事件回调调用的监听器的映射
+                     * @see org.apache.dubbo.registry.integration.RegistryDirectory
+                     */
                     ChildListener zkListener = listeners.computeIfAbsent(listener, k -> new RegistryChildListenerImpl(url, path, k, latch));
                     if (zkListener instanceof RegistryChildListenerImpl) {
                         ((RegistryChildListenerImpl) zkListener).setLatch(latch);
                     }
+                    /**
+                     * 如果没有的话创建持久节点
+                     */
                     zkClient.create(path, false);
+                    /**
+                     * 
+                     * 添加监听子目录的监听器,这一步是将内部的监听器和具体的zk监听器进行映射
+                     *
+                     * 返回的是监听路径下的值
+                     *
+                     * 如果是provider那么返回的就是已经存在的服务提供者
+                     * @see org.apache.dubbo.remoting.zookeeper.AbstractZookeeperClient#addChildListener(String, ChildListener) 
+                     */
                     List<String> children = zkClient.addChildListener(path, zkListener);
+
+                    /**
+                     * 处理provider目录下外其余的都变为empty协议
+                     * 因为provider下的是服务提供者需要创建对应的Invoker后面进行调用
+                     */
                     if (children != null) {
                         urls.addAll(toUrlsWithEmpty(url, path, children));
                     }
                 }
+                /**
+                 * @see ZookeeperRegistry#notify(URL, NotifyListener, List)
+                 * 这一步会将provider写入本地文件中同时也会存到内存后续调用可以拿到服务提供者
+                 */
                 notify(url, listener, urls);
                 // tells the listener to run only after the sync notification of main thread finishes.
                 latch.countDown();
@@ -304,7 +364,7 @@ public class ZookeeperRegistry extends CacheableFailbackRegistry {
 
         public RegistryChildListenerImpl(URL consumerUrl, String path, NotifyListener listener, CountDownLatch latch) {
             this.latch = latch;
-            notifier = new RegistryNotifier(ZookeeperRegistry.this.getDelay()) {
+            notifier = new RegistryNotifier(ZookeeperRegistry.this.getDelay()) {/**默认延迟5s通过线程睡眠实现的 */
                 @Override
                 public void notify(Object rawAddresses) {
                     long delayTime = getDelayTime();
@@ -326,6 +386,10 @@ public class ZookeeperRegistry extends CacheableFailbackRegistry {
 
                 @Override
                 protected void doNotify(Object rawAddresses) {
+                    /**
+                     * 进行时间触发
+                     * @see FailbackRegistry#notify(org.apache.dubbo.common.URL, org.apache.dubbo.registry.NotifyListener, java.util.List)
+                     */
                     ZookeeperRegistry.this.notify(consumerUrl, listener, ZookeeperRegistry.this.toUrlsWithEmpty(consumerUrl, path, (List<String>) rawAddresses));
                 }
             };
@@ -342,6 +406,10 @@ public class ZookeeperRegistry extends CacheableFailbackRegistry {
             } catch (InterruptedException e) {
                 logger.warn("Zookeeper children listener thread was interrupted unexpectedly, may cause race condition with the main thread.");
             }
+            /**
+             * 这个是建立内部的Listener和zk的映射时创建的
+             * @see RegistryChildListenerImpl#RegistryChildListenerImpl(org.apache.dubbo.common.URL, java.lang.String, org.apache.dubbo.registry.NotifyListener, java.util.concurrent.CountDownLatch)
+             */
             notifier.notify(children);
         }
     }

@@ -70,8 +70,17 @@ public class ReferenceConfigCache {
     private final String name;
     private final KeyGenerator generator;
 
+    /**
+     * 存放的是每个具体引用对应的配置信息
+     * key(组/接口:版本)
+     */
     private final ConcurrentMap<String, ReferenceConfigBase<?>> referredReferences = new ConcurrentHashMap<>();
 
+    /**
+     * 存放每个接口对应的引用
+     * 里面的map存放的是 引用key(组/接口:版本)
+     * 和对用的 InvokerInvocationHandler
+     */
     private final ConcurrentMap<Class<?>, ConcurrentMap<String, Object>> proxies = new ConcurrentHashMap<>();
 
     private ReferenceConfigCache(String name, KeyGenerator generator) {
@@ -111,6 +120,7 @@ public class ReferenceConfigCache {
          * 这个和服务提供者注册的key是一样的
          */
         String key = generator.generateKey(referenceConfig);
+        /** 引用服务的接口类型 */
         Class<?> type = referenceConfig.getInterfaceClass();
 
         /**
@@ -120,7 +130,11 @@ public class ReferenceConfigCache {
 
         return (T) proxiesOfType.computeIfAbsent(key, _k -> {
             /**
-             * @see ReferenceConfig#get()
+             * 获取服务引用的代理对象
+             * @see ReferenceConfig#get() 初始化
+             *
+             * 最终返回的是,后续调用方法会调用代理类的方法
+             * @see org.apache.dubbo.rpc.proxy.InvokerInvocationHandler
              */
             Object proxy = referenceConfig.get();
             referredReferences.put(key, referenceConfig);

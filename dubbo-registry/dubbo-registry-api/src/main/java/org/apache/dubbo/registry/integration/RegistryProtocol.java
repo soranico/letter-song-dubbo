@@ -33,6 +33,7 @@ import org.apache.dubbo.registry.client.ServiceDiscoveryRegistryDirectory;
 import org.apache.dubbo.registry.client.migration.MigrationClusterInvoker;
 import org.apache.dubbo.registry.client.migration.ServiceDiscoveryMigrationInvoker;
 import org.apache.dubbo.registry.retry.ReExportTask;
+import org.apache.dubbo.registry.support.FailbackRegistry;
 import org.apache.dubbo.registry.support.SkipFailbackWrapperException;
 import org.apache.dubbo.rpc.Exporter;
 import org.apache.dubbo.rpc.Invoker;
@@ -40,9 +41,7 @@ import org.apache.dubbo.rpc.Protocol;
 import org.apache.dubbo.rpc.ProtocolServer;
 import org.apache.dubbo.rpc.ProxyFactory;
 import org.apache.dubbo.rpc.RpcException;
-import org.apache.dubbo.rpc.cluster.Cluster;
-import org.apache.dubbo.rpc.cluster.ClusterInvoker;
-import org.apache.dubbo.rpc.cluster.Configurator;
+import org.apache.dubbo.rpc.cluster.*;
 import org.apache.dubbo.rpc.cluster.Constants;
 import org.apache.dubbo.rpc.cluster.governance.GovernanceRuleRepository;
 import org.apache.dubbo.rpc.cluster.support.MergeableCluster;
@@ -194,6 +193,13 @@ public class RegistryProtocol implements Protocol {
             registered));
     }
 
+    /**
+     * 如果是服务发现协议,service-discovery-registry
+     * 那么创建的就是这个类的对象
+     *
+     * 如果是注册协议 registry 那么创建的是其子类的对象
+     * @see InterfaceCompatibleRegistryProtocol
+     */
     @Override
     public <T> Exporter<T> export(final Invoker<T> originInvoker) throws RpcException {
 
@@ -202,8 +208,14 @@ public class RegistryProtocol implements Protocol {
         // application=dubbo-demo-annotation-provider&dubbo=2.0.2&
         // pid=28590&registry=zookeeper&timestamp=1630488668074
         /**
+         * 这个类只会处理服务发现协议
+         *
+         *
+         * 提供者注册是由子类处理的
          * 获取注册协议或者服务发现协议
          * 这个里面的属性值 export = 真实的注册到注册中心的协议 dubbo://
+         *
+         * @see InterfaceCompatibleRegistryProtocol#getRegistryUrl(Invoker)
          */
         URL registryUrl = getRegistryUrl(originInvoker);
 
@@ -269,6 +281,7 @@ public class RegistryProtocol implements Protocol {
 
         // url to registry
         /**
+         * 根据注册中心的类型通过spi获取注册中心
          * @see RegistryProtocol#getRegistry(URL)
          *
          * 此时返回的是一个
@@ -464,6 +477,10 @@ public class RegistryProtocol implements Protocol {
         return originInvoker.getUrl();
     }
 
+    /**
+     * 设置协议为 service-discovery-registry 为服务发现协议
+     * 因为这个类的实例只处理这个协议
+     */
     protected URL getRegistryUrl(URL url) {
         if (SERVICE_REGISTRY_PROTOCOL.equals(url.getProtocol())) {
             return url;
@@ -544,19 +561,31 @@ public class RegistryProtocol implements Protocol {
          * @see InterfaceCompatibleRegistryProtocol#getRegistry(URL)
          *
          * 此时协议是 zookeeper://
+         * 
+         * 如果是注册协议 registry  那么此时调用的是子类的方法
+         * @see InterfaceCompatibleRegistryProtocol#getRegistryUrl(URL) 
          */
         url = getRegistryUrl(url);
         /**
-         * @see ListenerRegistryWrapper
-         * 里面的
+         * 返回的是一个监听的Wrapper 里面封装了监听器
+         * @see ListenerRegistryWrapper#listeners
+         *
+         * 最终里面是具体的注册中心
          * @see org.apache.dubbo.registry.zookeeper.ZookeeperRegistry
          */
         Registry registry = registryFactory.getRegistry(url);
+        /**
+         * type是此时的接口的类型
+         * 服务引用的接口不是注册的接口
+         */
         if (RegistryService.class.equals(type)) {
             return proxyFactory.getInvoker((T) registry, type, url);
         }
 
         // group="a,b" or group="*"
+        /**
+         * 这个是消费者的配置参数
+         */
         Map<String, String> qs = (Map<String, String>) url.getAttribute(REFER_KEY);
         String group = qs.get(GROUP_KEY);
         if (group != null && group.length() > 0) {
@@ -564,8 +593,16 @@ public class RegistryProtocol implements Protocol {
                 return doRefer(Cluster.getCluster(MergeableCluster.NAME), registry, type, url, qs);
             }
         }
-
+        /**
+         * 消费者指定的 cluster 的配置
+         * 默认返回的是 mock 的
+         * @see org.apache.dubbo.rpc.cluster.support.wrapper.MockClusterInvoker
+         *
+         *  最终的调用的是带重试功能的
+         * @see org.apache.dubbo.rpc.cluster.support.FailoverCluster
+         */
         Cluster cluster = Cluster.getCluster(qs.get(CLUSTER_KEY));
+
         /**
          * @see RegistryProtocol#doRefer(Cluster, Registry, Class, URL, Map) 进行服务引用
          * 此时只是创建了一个对象
@@ -575,8 +612,16 @@ public class RegistryProtocol implements Protocol {
     }
 
     protected <T> Invoker<T> doRefer(Cluster cluster, Registry registry, Class<T> type, URL url, Map<String, String> parameters) {
+        /**
+         * URL的属性值里面有个 refer
+         * 里面存放的是消费者的URL
+         */
         Map<String, Object> consumerAttribute = new HashMap<>(url.getAttributes());
         consumerAttribute.remove(REFER_KEY);
+        /**
+         * 构建消费者的URL,此时肯定是不要这个 refer 属性的
+         * 因为这个URL本身就是一个消费者的URL,没有必要再存
+         */
         URL consumerUrl = new ServiceConfigURL(parameters.get(PROTOCOL_KEY) == null ? DUBBO : parameters.get(PROTOCOL_KEY),
             null,
             null,
@@ -587,12 +632,22 @@ public class RegistryProtocol implements Protocol {
         url = url.putAttribute(CONSUMER_URL_KEY, consumerUrl);
         /**
          * @see ServiceDiscoveryMigrationInvoker
+         *
+         *
+         * 如果是消费者的协议那么此时调用的是子类的
+         * @see InterfaceCompatibleRegistryProtocol#getMigrationInvoker(RegistryProtocol, Cluster, Registry, Class, URL, URL)
+         * 此时返回的就是一个
+         * @see org.apache.dubbo.registry.client.migration.MigrationInvoker
          */
         ClusterInvoker<T> migrationInvoker = getMigrationInvoker(this, cluster, registry, type, url, consumerUrl);
+
         /**
-         * 如果存在Listener
-         * 那么会调用每个
+         * 如果存在Listener那么会调用每个
          * @see RegistryProtocolListener#onRefer(RegistryProtocol, ClusterInvoker, URL, URL)
+         *
+         *
+         * 默认有个会进行消费者的注册以及对应category目录的监听设置
+         * @see org.apache.dubbo.registry.client.migration.MigrationRuleListener
          */
         return interceptInvoker(migrationInvoker, url, consumerUrl, url);
     }
@@ -606,11 +661,18 @@ public class RegistryProtocol implements Protocol {
     }
 
     protected <T> Invoker<T> interceptInvoker(ClusterInvoker<T> invoker, URL url, URL consumerUrl, URL registryURL) {
+        /**
+         * 默认就有一个激活的注册监听器
+         * @see org.apache.dubbo.registry.client.migration.MigrationRuleListener
+         */
         List<RegistryProtocolListener> listeners = findRegistryProtocolListeners(url);
         if (CollectionUtils.isEmpty(listeners)) {
             return invoker;
         }
-
+        /**
+         * 这一步会完成消费者的注册以及对应的category目录的监听,会刷新对应的服务列表到本地
+         * @see org.apache.dubbo.registry.client.migration.MigrationRuleListener#onRefer(RegistryProtocol, ClusterInvoker, URL, URL)
+         */
         for (RegistryProtocolListener listener : listeners) {
             listener.onRefer(this, invoker, consumerUrl, registryURL);
         }
@@ -629,20 +691,66 @@ public class RegistryProtocol implements Protocol {
     }
 
     protected <T> ClusterInvoker<T> doCreateInvoker(DynamicDirectory<T> directory, Cluster cluster, Registry registry, Class<T> type) {
+        /**
+         * 设置的是注册中心的
+         */
         directory.setRegistry(registry);
+        /**
+         * @see org.apache.dubbo.rpc.Protocol$Adaptive
+         */
         directory.setProtocol(protocol);
         // all attributes of REFER_KEY
+        /**
+         * 消费者的所有参数配置
+         */
         Map<String, String> parameters = new HashMap<String, String>(directory.getConsumerUrl().getParameters());
+        /**
+         * 消费者需要注册的URL
+         */
         URL urlToRegistry = new ServiceConfigURL(
             parameters.get(PROTOCOL_KEY) == null ? DUBBO : parameters.get(PROTOCOL_KEY),
             parameters.remove(REGISTER_IP_KEY), 0, getPath(parameters, type), parameters);
+        /**
+         * 应该注册
+         */
         if (directory.isShouldRegister()) {
+            /** 注册的消费者的URL */
             directory.setRegisteredConsumerUrl(urlToRegistry);
+
+            /**
+             * 因为这个时候要完成注册所有传入的是注册中心的
+             * @see FailbackRegistry#register(org.apache.dubbo.common.URL)
+             *
+             * 完成消费者注册到zk
+             * /dubbo/接口/consumer
+             * @see org.apache.dubbo.registry.support.FailbackRegistry#register(URL)
+             *
+             * 注册服务只注册提供者
+             * @see org.apache.dubbo.registry.client.ServiceDiscoveryRegistry#register(URL)
+             *
+             */
             registry.register(directory.getRegisteredConsumerUrl());
         }
+        /**
+         * TODO 设置当前URL的路由链
+         */
         directory.buildRouterChain(urlToRegistry);
-        directory.subscribe(toSubscribeUrl(urlToRegistry));
 
+        /**
+         * 这个地址是在消费者的URL上添加了category参数
+         *
+         * 完成消费者的订阅目录 category=providers,configurators,routers
+         * @see RegistryDirectory#subscribe(URL)
+         *
+         */
+        directory.subscribe(toSubscribeUrl(urlToRegistry));
+        /**
+         * 订阅完成后,此时消费者的引用的提供者就需要进行构建了
+         * @see org.apache.dubbo.rpc.cluster.support.wrapper.MockClusterWrapper#join(Directory)
+         * 里面则是包含了过滤器的
+         * @see org.apache.dubbo.rpc.cluster.support.wrapper.AbstractCluster.ClusterFilterInvoker
+         *
+         */
         return (ClusterInvoker<T>) cluster.join(directory);
     }
 

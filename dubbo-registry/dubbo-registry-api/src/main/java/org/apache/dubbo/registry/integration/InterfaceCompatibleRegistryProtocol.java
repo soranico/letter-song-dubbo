@@ -25,6 +25,8 @@ import org.apache.dubbo.rpc.Invoker;
 import org.apache.dubbo.rpc.cluster.Cluster;
 import org.apache.dubbo.rpc.cluster.ClusterInvoker;
 
+import java.util.List;
+
 import static org.apache.dubbo.common.constants.RegistryConstants.REGISTRY_KEY;
 import static org.apache.dubbo.common.constants.RegistryConstants.REGISTRY_PROTOCOL;
 import static org.apache.dubbo.registry.Constants.DEFAULT_REGISTRY;
@@ -37,6 +39,9 @@ public class InterfaceCompatibleRegistryProtocol extends RegistryProtocol {
     @Override
     protected URL getRegistryUrl(Invoker<?> originInvoker) {
         URL registryUrl = originInvoker.getUrl();
+        /**
+         * 替换 registry 协议为真实的注册协议
+         */
         if (REGISTRY_PROTOCOL.equals(registryUrl.getProtocol())) {
             String protocol = registryUrl.getParameter(REGISTRY_KEY, DEFAULT_REGISTRY);
             registryUrl = registryUrl.setProtocol(protocol).removeParameter(REGISTRY_KEY);
@@ -46,6 +51,12 @@ public class InterfaceCompatibleRegistryProtocol extends RegistryProtocol {
 
     @Override
     protected URL getRegistryUrl(URL url) {
+        /**
+         * 设置注册的协议
+         * 第一次的时候是注册中心的协议
+         * 因为此时的registry参数对应的的是注册中心
+         * 而需要注册的协议是在 ref 或者 export 属性里面
+         */
         return URLBuilder.from(url)
                 .setProtocol(url.getParameter(REGISTRY_KEY, DEFAULT_REGISTRY))
                 .removeParameter(REGISTRY_KEY)
@@ -54,7 +65,17 @@ public class InterfaceCompatibleRegistryProtocol extends RegistryProtocol {
 
     @Override
     public <T> ClusterInvoker<T> getInvoker(Cluster cluster, Registry registry, Class<T> type, URL url) {
+        /**
+         * 这个东西在配置发生修改的时候回调用对应的 notify()
+         * @see RegistryDirectory#notify(List) 
+         */
         DynamicDirectory<T> directory = new RegistryDirectory<>(type, url);
+        /**
+         * 将 directory 和 invoker 进行关联
+         *
+         * 并且进行对应的category目录的订阅,最终会创建一个包含了当前URL以及分组生效的链表过滤链调用关系
+         * @see InterfaceCompatibleRegistryProtocol#doCreateInvoker(DynamicDirectory, Cluster, Registry, Class) 
+         */
         return doCreateInvoker(directory, cluster, registry, type);
     }
 

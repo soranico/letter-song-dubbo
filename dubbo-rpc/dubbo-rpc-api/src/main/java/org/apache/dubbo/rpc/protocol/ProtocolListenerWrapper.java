@@ -60,10 +60,11 @@ public class ProtocolListenerWrapper implements Protocol {
 
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
+        /**
+         * 调用真实的协议
+         * @see org.apache.dubbo.registry.integration.RegistryProtocol#export(org.apache.dubbo.rpc.Invoker)
+         */
         if (UrlUtils.isRegistry(invoker.getUrl())) {
-            /**
-             * @see org.apache.dubbo.registry.integration.RegistryProtocol#export(org.apache.dubbo.rpc.Invoker)
-             */
             return protocol.export(invoker);
         }
         /**
@@ -80,6 +81,8 @@ public class ProtocolListenerWrapper implements Protocol {
         /**
          * 处理注册协议
          * @see org.apache.dubbo.registry.integration.RegistryProtocol#refer(java.lang.Class, org.apache.dubbo.common.URL)
+         * 创建的是子类的对象
+         * @see org.apache.dubbo.registry.integration.InterfaceCompatibleRegistryProtocol
          */
         if (UrlUtils.isRegistry(url)) {
             return protocol.refer(type, url);

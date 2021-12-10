@@ -64,10 +64,11 @@ public abstract class AbstractConfiguratorListener implements ConfigurationListe
 
     protected final void initWith(String key) {
         /**
-         * 添加监听跪着当这个目录修改后会触发监听
+         * 添加监听跪着当这个目录修改后会触发监听,这个是往监听注册中心的那个Listener里面注册
          * @see org.apache.dubbo.rpc.cluster.governance.DefaultGovernanceRuleRepositoryImpl
          */
         ruleRepository.addListener(key, this);
+        /**从监测目录中手动获取有没有值,如果有说明被修改过那么进行处理 */
         String rawConfig = ruleRepository.getRule(key, DynamicConfiguration.DEFAULT_GROUP);
         if (!StringUtils.isEmpty(rawConfig)) {
             genConfiguratorsFromRawRule(rawConfig);

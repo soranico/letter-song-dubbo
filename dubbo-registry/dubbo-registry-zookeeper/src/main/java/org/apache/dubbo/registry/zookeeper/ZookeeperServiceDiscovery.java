@@ -74,8 +74,8 @@ public class ZookeeperServiceDiscovery extends AbstractServiceDiscovery {
     @Override
     public void doInitialize(URL registryURL) throws Exception {
         this.registryURL = registryURL;
-        this.curatorFramework = buildCuratorFramework(registryURL);
-        this.rootPath = ROOT_PATH.getParameterValue(registryURL);
+        this.curatorFramework = buildCuratorFramework(registryURL);/**创建使用的zk客户端 */
+        this.rootPath = ROOT_PATH.getParameterValue(registryURL);/** 监听的根路径 /dubbo 或 /services(存的是provider的ip地址) */
         this.serviceDiscovery = buildServiceDiscovery(curatorFramework, rootPath);
         this.serviceDiscovery.start();
     }

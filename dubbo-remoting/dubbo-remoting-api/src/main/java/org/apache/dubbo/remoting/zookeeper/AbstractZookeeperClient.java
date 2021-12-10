@@ -40,6 +40,9 @@ public abstract class AbstractZookeeperClient<TargetDataListener, TargetChildLis
 
     private final Set<StateListener> stateListeners = new CopyOnWriteArraySet<StateListener>();
 
+    /**
+     * 这个存放的是内部的监听器和 真实的注册中心的监听器的映射
+     */
     private final ConcurrentMap<String, ConcurrentMap<ChildListener, TargetChildListener>> childListeners =
             new ConcurrentHashMap<String, ConcurrentMap<ChildListener, TargetChildListener>>();
 
@@ -107,6 +110,10 @@ public abstract class AbstractZookeeperClient<TargetDataListener, TargetChildLis
     @Override
     public List<String> addChildListener(String path, final ChildListener listener) {
         ConcurrentMap<ChildListener, TargetChildListener> listeners = childListeners.computeIfAbsent(path, k -> new ConcurrentHashMap<>());
+        /**
+         * 这个是真实监听zk的
+         * @see org.apache.dubbo.remoting.zookeeper.curator.CuratorZookeeperClient#createTargetChildListener(java.lang.String, org.apache.dubbo.remoting.zookeeper.ChildListener)
+         */
         TargetChildListener targetListener = listeners.computeIfAbsent(listener, k -> createTargetChildListener(path, k));
         return addTargetChildListener(path, targetListener);
     }

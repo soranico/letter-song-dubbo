@@ -53,7 +53,10 @@ public class MigrationRuleHandler<T> {
         } catch (Exception e) {
             logger.error("Failed to get step and threshold info from rule: " + rule, e);
         }
-
+        /**
+         * 如果是初始化的时候那么需要进行category目录的监听以及服务列表的刷新
+         * @see MigrationRuleHandler#refreshInvoker(MigrationStep, Float, MigrationRule)
+         */
         if (refreshInvoker(step, threshold, rule)) {
             // refresh success, update rule
             setMigrationRule(rule);
@@ -70,6 +73,10 @@ public class MigrationRuleHandler<T> {
             boolean success = true;
             switch (step) {
                 case APPLICATION_FIRST:
+                    /**
+                     * 消费者第一次初始化,需要监听category的目录以及缓存提供者到本地
+                     * @see MigrationInvoker#migrateToApplicationFirstInvoker(MigrationRule)
+                     */
                     migrationInvoker.migrateToApplicationFirstInvoker(newRule);
                     break;
                 case FORCE_APPLICATION:

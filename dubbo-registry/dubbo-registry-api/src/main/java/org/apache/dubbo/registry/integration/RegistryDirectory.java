@@ -32,15 +32,18 @@ import org.apache.dubbo.common.utils.NetUtils;
 import org.apache.dubbo.common.utils.StringUtils;
 import org.apache.dubbo.common.utils.UrlUtils;
 import org.apache.dubbo.registry.AddressListener;
+import org.apache.dubbo.registry.NotifyListener;
 import org.apache.dubbo.remoting.Constants;
 import org.apache.dubbo.rpc.Invocation;
 import org.apache.dubbo.rpc.Invoker;
 import org.apache.dubbo.rpc.Protocol;
 import org.apache.dubbo.rpc.RpcException;
 import org.apache.dubbo.rpc.cluster.Configurator;
+import org.apache.dubbo.rpc.cluster.Directory;
 import org.apache.dubbo.rpc.cluster.Router;
 import org.apache.dubbo.rpc.cluster.RouterFactory$Adaptive;
 import org.apache.dubbo.rpc.cluster.directory.StaticDirectory;
+import org.apache.dubbo.rpc.cluster.filter.FilterChainBuilder;
 import org.apache.dubbo.rpc.cluster.router.condition.ConditionRouterFactory;
 import org.apache.dubbo.rpc.cluster.support.ClusterUtils;
 import org.apache.dubbo.rpc.model.ApplicationModel;
@@ -88,11 +91,18 @@ import static org.apache.dubbo.rpc.cluster.Constants.ROUTER_KEY;
 public class RegistryDirectory<T> extends DynamicDirectory<T> {
     private static final Logger logger = LoggerFactory.getLogger(RegistryDirectory.class);
 
+    /**
+     * 这个是全局的监听
+     * /dubbo/config/dubbo/appName(AppConfig配置的名字).configurators
+     */
     private static final ConsumerConfigurationListener CONSUMER_CONFIGURATION_LISTENER = new ConsumerConfigurationListener();
     private ReferenceConfigurationListener referenceConfigurationListener;
 
     // Map<url, Invoker> cache service url to invoker mapping.
     // The initial value is null and the midway may be assigned to null, please use the local variable reference
+    /**
+     * 这个里面是每个提供者的URL和对应的Invoker的映射
+     */
     protected volatile Map<URL, Invoker<T>> urlInvokerMap;
     // The initial value is null and the midway may be assigned to null, please use the local variable reference
     protected volatile Set<URL> cachedInvokerUrls;
@@ -103,9 +113,26 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
 
     @Override
     public void subscribe(URL url) {
+        /** 设置订阅地址的URL */
         setSubscribeUrl(url);
+        /**
+         * 这个是用于监控全局配置的
+         * 一旦里面修改了会对这个app下的都生效
+         * 添加监听override协议的
+         * TODO
+         */
         CONSUMER_CONFIGURATION_LISTENER.addNotifyListener(this);
+        /**
+         * 这个也是对、dubbo/config/dubbo目录下的接口的配置进行监听
+         * TODO
+         */
         referenceConfigurationListener = new ReferenceConfigurationListener(this, url);
+
+        /**
+         * 进行订阅, 此时URL里面的category有订阅的地址
+         * 消费者订阅了 provider routers configuration
+         * @see org.apache.dubbo.registry.support.FailbackRegistry#subscribe(URL, NotifyListener)
+         */
         registry.subscribe(url, this);
     }
 
@@ -146,15 +173,25 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
         /**
          * 处理 router 协议
          * @see RegistryDirectory#toRouters(List)
+         * 并添加到
+         * @see RegistryDirectory#routerChain 集合中
          */
         List<URL> routerURLs = categoryUrls.getOrDefault(ROUTERS_CATEGORY, Collections.emptyList());
 
         toRouters(routerURLs).ifPresent(this::addRouters);
 
         // providers
+        /**
+         * 提供者的协议
+         */
         List<URL> providerURLs = categoryUrls.getOrDefault(PROVIDERS_CATEGORY, Collections.emptyList());
+
         /**
          * 3.x added for extend URL address
+         * 当前注册中心的URL适配的,默认有一个
+         * @see org.apache.dubbo.rpc.cluster.router.mesh.route.MeshRuleAddressListenerInterceptor#notify(List, URL, Directory)
+         *
+         * 只是处理数据还是原样返回
          */
         ExtensionLoader<AddressListener> addressListenerExtensionLoader = ExtensionLoader.getExtensionLoader(AddressListener.class);
         List<AddressListener> supportedListeners = addressListenerExtensionLoader.getActivateExtension(getUrl(), (String[]) null);
@@ -163,6 +200,10 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
                 providerURLs = addressListener.notify(providerURLs, getConsumerUrl(),this);
             }
         }
+        /**
+         * 刷新provider 的列表信息
+         * @see RegistryDirectory#refreshOverrideAndInvoker(List)
+         */
         refreshOverrideAndInvoker(providerURLs);
     }
 
@@ -185,7 +226,15 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
     // RefreshOverrideAndInvoker will be executed by registryCenter and configCenter, so it should be synchronized.
     private synchronized void refreshOverrideAndInvoker(List<URL> urls) {
         // mock zookeeper://xxx?mock=return null
+        /**
+         * 首先合并 override协议的参数值
+         * @see RegistryDirectory#overrideDirectoryUrl()
+         */
         overrideDirectoryUrl();
+        /**
+         * 刷新服务列表
+         * @see RegistryDirectory#refreshInvoker(List)
+         */
         refreshInvoker(urls);
     }
 
@@ -203,7 +252,12 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
      */
     private void refreshInvoker(List<URL> invokerUrls) {
         Assert.notNull(invokerUrls, "invokerUrls should not be null");
-
+        /**
+         * 如果只有一个 empty 协议那么
+         * 表明这个消费者没有可以用的提供者
+         * 那么此时这个消费者的引用是不可用的
+         * 设置禁止标记
+         */
         if (invokerUrls.size() == 1
                 && invokerUrls.get(0) != null
                 && EMPTY_PROTOCOL.equals(invokerUrls.get(0).getProtocol())) {
@@ -217,15 +271,29 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
             if (invokerUrls == Collections.<URL>emptyList()) {
                 invokerUrls = new ArrayList<>();
             }
+            /**
+             * 之前缓存的提供者的URL不为空而当前通知的URL为空
+             * 那么使用缓存的
+             * TODO 一般不可能有这种情况
+             */
             if (invokerUrls.isEmpty() && this.cachedInvokerUrls != null) {
                 invokerUrls.addAll(this.cachedInvokerUrls);
-            } else {
+            }
+            /**
+             * 更新缓存,此时通知的是最新可以使用的提供者
+             */
+            else {
                 this.cachedInvokerUrls = new HashSet<>();
                 this.cachedInvokerUrls.addAll(invokerUrls);//Cached invoker urls, convenient for comparison
             }
             if (invokerUrls.isEmpty()) {
                 return;
             }
+            /**
+             * 将每个URL转为一个Invoker,每个URL对应一个提供者
+             * @see RegistryDirectory#toInvokers(List)
+             * 这个是一个全量更新后面会用新的直接替换之前老的
+             */
             Map<URL, Invoker<T>> newUrlInvokerMap = toInvokers(invokerUrls);// Translate url list to Invoker map
 
             /**
@@ -245,17 +313,33 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
             List<Invoker<T>> newInvokers = Collections.unmodifiableList(new ArrayList<>(newUrlInvokerMap.values()));
             // pre-route and build cache, notice that route cache should build on original Invoker list.
             // toMergeMethodInvokerMap() will wrap some invokers having different groups, those wrapped invokers not should be routed.
+            /**
+             * TODO 更新router
+             * @see org.apache.dubbo.rpc.cluster.RouterChain#setInvokers(List)
+             */
             routerChain.setInvokers(newInvokers);
             this.invokers = multiGroup ? toMergeInvokerList(newInvokers) : newInvokers;
+            /**
+             * 更新服务列表,全量更新
+             */
             this.urlInvokerMap = newUrlInvokerMap;
 
             try {
+                /**
+                 * 销毁老的URL对应的配置
+                 * 如果此时没有新的URL
+                 * 那么就会销毁所有的配置
+                 */
                 destroyUnusedInvokers(oldUrlInvokerMap, newUrlInvokerMap); // Close the unused Invoker
             } catch (Exception e) {
                 logger.warn("destroyUnusedInvokers error. ", e);
             }
 
             // notify invokers refreshed
+            /**
+             * 通知Invoker的刷新
+             * 不知道做啥的
+             */
             this.invokersChanged();
         }
     }
@@ -343,9 +427,19 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
         if (urls == null || urls.isEmpty()) {
             return newUrlInvokerMap;
         }
+        /**
+         * 这个是消费者配置的参数
+         * 此时需要拿出消费者配置提供者的协议类型
+         * 如果没有配置那么消费者都可以使用
+         * 如果指定了协议,那么只有相同协议的提供者才可以被当前消费者调用
+         */
         String queryProtocols = this.queryMap.get(PROTOCOL_KEY);
         for (URL providerUrl : urls) {
             // If protocol is configured at the reference side, only the matching protocol is selected
+            /**
+             * 如果是消费者配置的协议
+             * 那么只会使用对应的协议类型
+             */
             if (queryProtocols != null && queryProtocols.length() > 0) {
                 boolean accept = false;
                 String[] acceptProtocols = queryProtocols.split(",");
@@ -369,10 +463,20 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
                         ExtensionLoader.getExtensionLoader(Protocol.class).getSupportedExtensions()));
                 continue;
             }
+            /**
+             * 将提供者和消费者的参数进行合并
+             * 如果消费者配置的话那么以消费者为准
+             */
             URL url = mergeUrl(providerUrl);
 
             // Cache key is url that does not merge with consumer side parameters, regardless of how the consumer combines parameters, if the server url changes, then refer again
             Map<URL, Invoker<T>> localUrlInvokerMap = this.urlInvokerMap; // local reference
+            /**
+             * 移除之前URL对应的提供者
+             * 如果没有的话那么表明这个是一个新的服务提供者那么需要进行引用
+             * 如果存在的话那么表明这个URL对应的提供者没有做任何修改
+             * 没有必须要再次创建通信的Invoker
+             */
             Invoker<T> invoker = localUrlInvokerMap == null ? null : localUrlInvokerMap.remove(url);
             if (invoker == null) { // Not in the cache, refer again
                 try {
@@ -382,6 +486,26 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
                     } else {
                         enabled = url.getParameter(ENABLED_KEY, true);
                     }
+                    /**
+                     * 创建新的服务提供者的引用
+                     * @see org.apache.dubbo.rpc.Protocol$Adaptive
+                     *
+                     *
+                     * 最终的协议,里面会构建一个用于和提供者通信的客户端
+                     * @see org.apache.dubbo.rpc.protocol.dubbo.DubboProtocol#refer(java.lang.Class, org.apache.dubbo.common.URL)
+                     * 最终调用的是这个
+                     * @see org.apache.dubbo.rpc.protocol.dubbo.DubboInvoker
+                     *
+                     * 然后构建此时使用的监听器,默认没有
+                     * @see org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper#refer(Class, URL)
+                     * 返回,里面包含监听器
+                     * @see org.apache.dubbo.rpc.listener.ListenerInvokerWrapper
+                     *
+                     * 最后返回的是个拦截器链
+                     * @see org.apache.dubbo.rpc.cluster.filter.ProtocolFilterWrapper#refer(Class, URL)
+                     * 返回每个节点里面都包含一个真实调用的Invoker
+                     * @see FilterChainBuilder.ClusterFilterChainNode
+                     */
                     if (enabled) {
                         invoker = protocol.refer(serviceType, url);
                     }
@@ -391,7 +515,13 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
                 if (invoker != null) { // Put new invoker in cache
                     newUrlInvokerMap.put(url, invoker);
                 }
-            } else {
+            }
+            /**
+             * 此时说明URL没有变更
+             * 那么直接使用之前的Invoker就可以
+             * 没有必要再次构建
+             */
+            else {
                 newUrlInvokerMap.put(url, invoker);
             }
         }
@@ -547,6 +677,9 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
         List<Invoker<T>> invokers = null;
         try {
             // Get invokers from cache, only runtime routers will be executed.
+            /**
+             * 从路由缓存中获取
+             */
             invokers = routerChain.route(getConsumerUrl(), invocation);
         } catch (Throwable t) {
             logger.error("Failed to execute router: " + getUrl() + ", cause: " + t.getMessage(), t);
@@ -650,6 +783,7 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
         ReferenceConfigurationListener(RegistryDirectory directory, URL url) {
             this.directory = directory;
             this.url = url;
+            /**此步完成了当前Listener注册到真正监控注册中心修改的那个Listener里面 */
             this.initWith(DynamicConfiguration.getRuleKey(url) + CONFIGURATORS_SUFFIX);
         }
 
@@ -672,6 +806,7 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
         }
 
         void addNotifyListener(RegistryDirectory listener) {
+            /** 添加到回调中,触发override 协议变更时的修改 */
             this.listeners.add(listener);
         }
 

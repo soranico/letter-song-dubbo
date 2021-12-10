@@ -26,6 +26,7 @@ import org.apache.dubbo.rpc.Invoker;
 import org.apache.dubbo.rpc.Protocol;
 import org.apache.dubbo.rpc.ProtocolServer;
 import org.apache.dubbo.rpc.RpcException;
+import org.apache.dubbo.rpc.cluster.ClusterInvoker;
 
 import java.util.List;
 
@@ -86,6 +87,13 @@ public class ProtocolFilterWrapper implements Protocol {
         if (UrlUtils.isRegistry(url)) {
             return protocol.refer(type, url);
         }
+        /**
+         * 构建拦截器lian
+         * @see DefaultFilterChainBuilder#buildClusterInvokerChain(ClusterInvoker, String, String)
+         *
+         * 返回的节点里面每个都包含一个真实调用的Invoker
+         * @see FilterChainBuilder.ClusterFilterChainNode
+         */
         return builder.buildInvokerChain(protocol.refer(type, url), REFERENCE_FILTER_KEY, CommonConstants.CONSUMER);
     }
 

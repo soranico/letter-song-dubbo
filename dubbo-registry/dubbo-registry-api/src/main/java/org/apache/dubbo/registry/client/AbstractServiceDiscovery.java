@@ -35,7 +35,7 @@ public abstract class AbstractServiceDiscovery implements ServiceDiscovery {
 
     @Override
     public final void initialize(URL registryURL) throws Exception {
-        doInitialize(registryURL);
+        doInitialize(registryURL);/**@see org.apache.dubbo.registry.zookeeper.ZookeeperServiceDiscovery#doInitialize(org.apache.dubbo.common.URL) 进行服务监听 */
     }
 
     public abstract void doInitialize(URL registryURL) throws Exception;

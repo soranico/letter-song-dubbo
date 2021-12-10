@@ -203,11 +203,22 @@ public class MigrationRuleListener implements RegistryProtocolListener, Configur
 
     @Override
     public void onRefer(RegistryProtocol registryProtocol, ClusterInvoker<?> invoker, URL consumerUrl, URL registryURL) {
+        /**
+         * MigrationInvoker 是没有重写 equals 和 hashcode方法的
+         * 因为每个 MigrationInvoker 只对应唯一一个消费者
+         */
         MigrationRuleHandler<?> migrationRuleHandler = handlers.computeIfAbsent((MigrationInvoker<?>) invoker, _key -> {
+            /**
+             * 将Invoker和Listener进行关联
+             * 后续销毁的时候可以保证从map中移除这个对象
+             */
             ((MigrationInvoker<?>) invoker).setMigrationRuleListener(this);
             return new MigrationRuleHandler<>((MigrationInvoker<?>) invoker, consumerUrl);
         });
-
+        /**
+         * 消费者的时候回进行目录的监听和注册以及提供者的缓存
+         * @see MigrationRuleHandler#doMigrate(MigrationRule) 
+         */
         migrationRuleHandler.doMigrate(rule);
     }
 

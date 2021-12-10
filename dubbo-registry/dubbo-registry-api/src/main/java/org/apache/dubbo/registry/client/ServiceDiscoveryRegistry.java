@@ -101,7 +101,7 @@ public class ServiceDiscoveryRegistry implements Registry {
 
     public ServiceDiscoveryRegistry(URL registryURL) {
         this.registryURL = registryURL;
-        this.serviceDiscovery = createServiceDiscovery(registryURL);
+        this.serviceDiscovery = createServiceDiscovery(registryURL);/**创建服务发现并且进行初始化 */
         this.writableMetadataService = WritableMetadataService.getDefaultExtension();
     }
 
@@ -117,7 +117,7 @@ public class ServiceDiscoveryRegistry implements Registry {
      */
     protected ServiceDiscovery createServiceDiscovery(URL registryURL) {
         ServiceDiscovery serviceDiscovery = getServiceDiscovery(registryURL);
-        execute(() -> {
+        execute(() -> {/** 执行初始化的操作 */
             serviceDiscovery.initialize(registryURL.addParameter(INTERFACE_KEY, ServiceDiscovery.class.getName())
                     .removeParameter(REGISTRY_TYPE_KEY));
         });
@@ -138,7 +138,7 @@ public class ServiceDiscoveryRegistry implements Registry {
      */
     private ServiceDiscovery getServiceDiscovery(URL registryURL) {
         ServiceDiscoveryFactory factory = getExtension(registryURL);
-        return factory.getServiceDiscovery(registryURL);
+        return factory.getServiceDiscovery(registryURL);/**@see org.apache.dubbo.registry.zookeeper.ZookeeperServiceDiscoveryFactory#getServiceDiscovery(URL) 获取当前URL对应的服务发现  */
     }
 
     protected boolean shouldRegister(URL providerURL) {
@@ -162,6 +162,11 @@ public class ServiceDiscoveryRegistry implements Registry {
 
     @Override
     public final void register(URL url) {
+        /**
+         * 只注册provider
+         * 消费者不需要注册
+         * 因为存的是 provider的ip
+         */
         if (!shouldRegister(url)) { // Should Not Register
             return;
         }

@@ -164,7 +164,11 @@ public class RouterChain<T> {
      * @return
      */
     public List<Invoker<T>> route(URL url, Invocation invocation) {
-
+        /**
+         * 获取缓存中最新的提供者的数据
+         * 这个缓存是在注册中心的事件回调中完成的
+         * @see org.apache.dubbo.registry.integration.RegistryDirectory#notify(java.util.List)
+         */
         AddrCache<T> cache = this.cache.get();
         if (cache == null) {
             throw new RpcException(RpcException.ROUTER_CACHE_NOT_BUILD, "Failed to invoke the method "
@@ -175,6 +179,10 @@ public class RouterChain<T> {
                 + ".");
         }
         BitList<Invoker<T>> finalBitListInvokers = new BitList<>(invokers, false);
+        /**
+         * 如果存在路由状态配置
+         * 那么需要对 Invoker 进行路由配置
+         */
         for (StateRouter stateRouter : stateRouters) {
             if (stateRouter.isEnable()) {
                 RouterCache<T> routerCache = cache.getCache().get(stateRouter.getName());
@@ -200,8 +208,15 @@ public class RouterChain<T> {
      */
     public void setInvokers(List<Invoker<T>> invokers) {
         this.invokers = (invokers == null ? Collections.emptyList() : invokers);
+        /**
+         * 通知Invoker的变更
+         */
         stateRouters.forEach(router -> router.notify(this.invokers));
         routers.forEach(router -> router.notify(this.invokers));
+        /**
+         * 如果是第一次的话那么会创建缓存
+         * @see RouterChain#loop(boolean)
+         */
         loop(true);
     }
 
@@ -268,6 +283,9 @@ public class RouterChain<T> {
     public void loop(boolean notify) {
         if (firstBuildCache.get()) {
             firstBuildCache.compareAndSet(true,false);
+            /**
+             * 初次构建缓存
+             */
             buildCache(notify);
         }
         if (notify) {

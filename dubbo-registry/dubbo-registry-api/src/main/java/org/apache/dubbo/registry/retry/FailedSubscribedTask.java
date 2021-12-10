@@ -41,7 +41,7 @@ public final class FailedSubscribedTask extends AbstractRetryTask {
 
     @Override
     protected void doRetry(URL url, FailbackRegistry registry, Timeout timeout) {
-        registry.doSubscribe(url, listener);
+        registry.doSubscribe(url, listener);/**@see org.apache.dubbo.registry.zookeeper.ZookeeperRegistry#doSubscribe(org.apache.dubbo.common.URL, org.apache.dubbo.registry.NotifyListener) 监听对应的category并且刷新服务提供者列表  */
         registry.removeFailedSubscribedTask(url, listener);
     }
 }

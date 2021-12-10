@@ -45,6 +45,10 @@ final class ReferenceCountExchangeClient implements ExchangeClient {
     private final AtomicInteger referenceCount = new AtomicInteger(0);
     private final AtomicInteger disconnectCount = new AtomicInteger(0);
     private final Integer maxDisconnectCount = 50;
+
+    /**
+     * @see org.apache.dubbo.remoting.exchange.support.header.HeaderExchangeClient
+     */
     private ExchangeClient client;
 
     public ReferenceCountExchangeClient(ExchangeClient client) {
@@ -91,7 +95,11 @@ final class ReferenceCountExchangeClient implements ExchangeClient {
     @Override
     public CompletableFuture<Object> request(Object request, int timeout, ExecutorService executor) throws RemotingException {
         /**
+         * 默认是创建的时候就会建立连接
          * @see org.apache.dubbo.remoting.exchange.support.header.HeaderExchangeClient#request(Object, int, ExecutorService)
+         *
+         * 延迟建立连接的
+         * @see LazyConnectExchangeClient#request(Object, int, ExecutorService) 
          */
         return client.request(request, timeout, executor);
     }

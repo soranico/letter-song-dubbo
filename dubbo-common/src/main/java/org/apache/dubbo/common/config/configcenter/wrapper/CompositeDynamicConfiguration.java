@@ -88,6 +88,10 @@ public class CompositeDynamicConfiguration implements DynamicConfiguration {
     }
 
     private void iterateListenerOperation(Consumer<DynamicConfiguration> consumer) {
+        /**
+         * 调用具体的注册中心实现,此时会将Listener添加到对应集合，
+         * 在注册中心发生指定路径事件的时候回进行回到这些Listener
+         */
         for (DynamicConfiguration configuration : configurations) {
             consumer.accept(configuration);
         }

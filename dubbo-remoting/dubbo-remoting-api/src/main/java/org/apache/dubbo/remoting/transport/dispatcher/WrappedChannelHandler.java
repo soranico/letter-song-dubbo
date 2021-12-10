@@ -35,6 +35,10 @@ public class WrappedChannelHandler implements ChannelHandlerDelegate {
 
     protected static final Logger logger = LoggerFactory.getLogger(WrappedChannelHandler.class);
 
+    /**
+     * 这个是在启动服务端的时候传入的,默认的是
+     * @see org.apache.dubbo.rpc.protocol.dubbo.DubboProtocol#requestHandler
+     */
     protected final ChannelHandler handler;
 
     protected final URL url;

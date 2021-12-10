@@ -63,16 +63,31 @@ public abstract class DynamicDirectory<T> extends AbstractDirectory<T> implement
 
     protected final String serviceKey; // Initialization at construction time, assertion not null
     protected final Class<T> serviceType; // Initialization at construction time, assertion not null
+    /**
+     * 消费者的URL
+     */
     protected final URL directoryUrl; // Initialization at construction time, assertion not null, and always assign non null value
     protected final boolean multiGroup;
     protected Protocol protocol; // Initialization at the time of injection, the assertion is not null
+    /**
+     * 里面是注册中心的
+     * 因为需要用这个来进行消费者或提供者的注册
+     * 以及对应目录的订阅监听
+     */
     protected Registry registry; // Initialization at the time of injection, the assertion is not null
     protected volatile boolean forbidden = false;
     protected boolean shouldRegister;
     protected boolean shouldSimplified;
 
     protected volatile URL overrideDirectoryUrl; // Initialization at construction time, assertion not null, and always assign non null value
+    /**
+     * 订阅的地址
+     * 如果是消费者那么是消费者的注册URL添加category参数的
+     */
     protected volatile URL subscribeUrl;
+    /**
+     * 注册的消费者的URL
+     */
     protected volatile URL registeredConsumerUrl;
 
     /**
@@ -133,6 +148,10 @@ public abstract class DynamicDirectory<T> extends AbstractDirectory<T> implement
 
     public void subscribe(URL url) {
         setSubscribeUrl(url);
+        /**
+         * 注册对应category目录的监听,同时会刷新本地服务列表
+         * @see org.apache.dubbo.registry.support.AbstractRegistry#subscribe(URL, NotifyListener)
+         */
         registry.subscribe(url, this);
     }
 

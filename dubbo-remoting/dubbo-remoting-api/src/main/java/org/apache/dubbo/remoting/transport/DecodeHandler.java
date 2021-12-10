@@ -40,6 +40,9 @@ public class DecodeHandler extends AbstractChannelHandlerDelegate {
             decode(message);
         }
 
+        /**
+         * 进行解码
+         */
         if (message instanceof Request) {
             decode(((Request) message).getData());
         }
@@ -47,7 +50,10 @@ public class DecodeHandler extends AbstractChannelHandlerDelegate {
         if (message instanceof Response) {
             decode(((Response) message).getResult());
         }
-
+        /**
+         * 解码过后继续传递
+         * @see org.apache.dubbo.remoting.exchange.support.header.HeaderExchangeHandler#received(Channel, Object)
+         */
         handler.received(channel, message);
     }
 

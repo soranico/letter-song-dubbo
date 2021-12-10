@@ -44,10 +44,14 @@ final class NettyChannel extends AbstractChannel {
     private static final Logger logger = LoggerFactory.getLogger(NettyChannel.class);
     /**
      * the cache for netty channel and dubbo channel
+     *
+     * 缓存的是 netty 的channel 和 dubbo 的channel的映射
+     *
      */
     private static final ConcurrentMap<Channel, NettyChannel> CHANNEL_MAP = new ConcurrentHashMap<Channel, NettyChannel>();
     /**
      * netty channel
+     * 这个是当前内部映射的 netty 的channel
      */
     private final Channel channel;
 
@@ -84,6 +88,10 @@ final class NettyChannel extends AbstractChannel {
         if (ch == null) {
             return null;
         }
+        /**
+         * 获取 内部使用的 channel
+         * 如果没有的话需要建立映射关系
+         */
         NettyChannel ret = CHANNEL_MAP.get(ch);
         if (ret == null) {
             NettyChannel nettyChannel = new NettyChannel(ch, url, handler);
@@ -161,6 +169,7 @@ final class NettyChannel extends AbstractChannel {
         try {
             /**
              * 纯Netty代码 写出请求消息
+             * 此时相当于已经发送完成
              */
             ChannelFuture future = channel.writeAndFlush(message);
             /**

@@ -200,6 +200,11 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
      * Check whether the registry config is exists, and then conversion it to {@link RegistryConfig}
      */
     protected void checkRegistry() {
+        /**
+         * 如果没有注册中心的地址会从全局配置中获取
+         * 注册中心的配置,注册中心可能有多个
+         * @see AbstractInterfaceConfig#convertRegistryIdsToRegistries()
+         */
         convertRegistryIdsToRegistries();
 
         for (RegistryConfig registryConfig : registries) {

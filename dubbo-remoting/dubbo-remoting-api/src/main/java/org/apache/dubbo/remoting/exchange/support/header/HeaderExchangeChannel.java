@@ -45,6 +45,9 @@ final class HeaderExchangeChannel implements ExchangeChannel {
 
     private static final String CHANNEL_KEY = HeaderExchangeChannel.class.getName() + ".CHANNEL";
 
+    /**
+     * @see org.apache.dubbo.remoting.transport.netty4.NettyChannel
+     */
     private final Channel channel;
 
     private volatile boolean closed = false;
@@ -95,6 +98,9 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         if (message instanceof Request
                 || message instanceof Response
                 || message instanceof String) {
+            /**
+             * @see org.apache.dubbo.remoting.transport.netty4.NettyChannel#send(java.lang.Object, boolean)
+             */
             channel.send(message, sent);
         } else {
             Request request = new Request();
@@ -126,14 +132,34 @@ final class HeaderExchangeChannel implements ExchangeChannel {
             throw new RemotingException(this.getLocalAddress(), null, "Failed to send request " + request + ", cause: The channel " + this + " is closed!");
         }
         // create request.
+        /**
+         * 里面会生成一个自增的ID
+         * 就是一个原子long的自增
+         * TODO 异步怎么实现回调通知的
+         */
         Request req = new Request();
         req.setVersion(Version.getProtocolVersion());
         req.setTwoWay(true);
+        /** 请求的数据 */
         req.setData(request);
+        /**
+         * 此时会将创建的自增ID 和 创建的 future 建立映射
+         * @see DefaultFuture#FUTURES
+         * 同时建立 ID 和 channel 的映射
+         * @see DefaultFuture#CHANNELS
+         *
+         * 此时channel 是
+         * @see org.apache.dubbo.remoting.transport.netty4.NettyChannel
+         * 里面存放了 真实的 netty 的channel
+         */
         DefaultFuture future = DefaultFuture.newFuture(channel, req, timeout, executor);
         try {
             /**
-             * @see org.apache.dubbo.remoting.transport.netty4.NettyClient#send(Object) 
+             * 发送请求,如果没有配置等待发送完成默认是false
+             * 因为netty是基于事件驱动回调的,一般消息发送不会同步阻塞
+             * @see org.apache.dubbo.remoting.transport.netty4.NettyClient#send(Object)
+             *
+             * @see org.apache.dubbo.remoting.transport.netty4.NettyChannel#send(java.lang.Object, boolean)
              */
             channel.send(req);
         } catch (RemotingException e) {

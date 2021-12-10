@@ -101,6 +101,8 @@ public class NettyServer extends AbstractServer implements RemotingServer {
                 "NettyServerWorker");
         /**
          * 这个Handler继承了 inbound
+         * 在接收到消息的时候会调用
+         * @see NettyServerHandler#channelRead(ChannelHandlerContext, Object) 
          */
         final NettyServerHandler nettyServerHandler = new NettyServerHandler(getUrl(), this);
         channels = nettyServerHandler.getChannels();

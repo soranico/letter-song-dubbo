@@ -173,6 +173,10 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
         RpcInvocation invocation = (RpcInvocation) inv;
 
         // prepare rpc invocation
+        /**
+         * 请求前会设置 当前请求的方式 同步 或异步 默认同步
+         * 以及请求使用的 序列化的方式 默认 hessian2
+         */
         prepareInvocation(invocation);
 
         // do invoke rpc invocation and return async result
@@ -200,10 +204,16 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
 
         addInvocationAttachments(inv);
 
+        /**
+         * 调用模式,Future 同步 异步
+         */
         inv.setInvokeMode(RpcUtils.getInvokeMode(url, inv));
 
         RpcUtils.attachInvocationIdIfAsync(getUrl(), inv);
 
+        /**
+         * 序列化的方式,默认是 hessian2
+         */
         Byte serializationId = CodecSupport.getIDByName(getUrl().getParameter(SERIALIZATION_KEY, DEFAULT_REMOTING_SERIALIZATION));
         if (serializationId != null) {
             inv.put(SERIALIZATION_ID_KEY, serializationId);
@@ -243,7 +253,7 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
         AsyncRpcResult asyncResult;
         try {
             /**
-             * 发送异步请求
+             * 调用子类去发送请求,对于不同的协议此时的请求实现必然不同
              * @see org.apache.dubbo.rpc.protocol.dubbo.DubboInvoker#doInvoke(org.apache.dubbo.rpc.Invocation)
              */
             asyncResult = (AsyncRpcResult) doInvoke(invocation);
@@ -270,6 +280,9 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
         }
 
         // set server context
+        /**
+         * 设置到TL
+         */
         RpcContext.getServiceContext().setFuture(new FutureAdapter<>(asyncResult.getResponseFuture()));
 
         return asyncResult;
@@ -284,6 +297,9 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
              * NOTICE!
              * must call {@link java.util.concurrent.CompletableFuture#get(long, TimeUnit)} because
              * {@link java.util.concurrent.CompletableFuture#get()} was proved to have serious performance drop.
+             */
+            /**
+             * TODO get()有性能问题 ?
              */
             asyncResult.get(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {

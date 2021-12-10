@@ -46,8 +46,16 @@ public abstract class AbstractCluster implements Cluster {
 
     private <T> Invoker<T> buildClusterInterceptors(AbstractClusterInvoker<T> clusterInvoker, String key) {
 //        AbstractClusterInvoker<T> last = clusterInvoker;
+        /**
+         * 构建执行的调用链
+         * @see AbstractCluster#buildInterceptorInvoker(AbstractClusterInvoker)
+         * 如果没有自定义的过滤器那么返回的就是
+         * @see ClusterFilterInvoker
+         * 如果存在自定义的过滤器,那么自定义的会添加到前面,返回的是
+         * @see InvocationInterceptorInvoker
+         */
         AbstractClusterInvoker<T> last = buildInterceptorInvoker(new ClusterFilterInvoker<>(clusterInvoker));
-
+        /**@see InvocationInterceptorInvoker 里面是一个过滤链表最终调用真实的 invoker */
         if (Boolean.parseBoolean(ConfigurationUtils.getProperty(CLUSTER_INTERCEPTOR_COMPATIBLE_KEY, "false"))) {
             return build27xCompatibleClusterInterceptors(clusterInvoker, last);
         }
@@ -59,10 +67,25 @@ public abstract class AbstractCluster implements Cluster {
         if (directory instanceof StaticDirectory) {
             return doJoin(directory);
         }
+        /**
+         * 首先根据不同的cluster构建不同功能的Invoker
+         * e.g 默认的是带重试功能的
+         * @see org.apache.dubbo.rpc.cluster.support.FailoverClusterInvoker
+         * @see org.apache.dubbo.rpc.cluster.support.FailoverCluster#doJoin(Directory)
+         *
+         * 获取到最终指定的Invoker的时候需要对这个Invoker进行调用链封装
+         * @see AbstractCluster#buildClusterInterceptors(AbstractClusterInvoker, String) 
+         *
+         */
         return buildClusterInterceptors(doJoin(directory), directory.getUrl().getParameter(REFERENCE_INTERCEPTOR_KEY));
     }
 
     private <T> AbstractClusterInvoker<T> buildInterceptorInvoker(AbstractClusterInvoker<T> invoker) {
+        /**
+         * 这个相当于一个扩展,可以自己实现
+         * @see InvocationInterceptorInvoker 接口来添加自定义的过滤器
+         * 默认是没有的
+         */
         List<InvocationInterceptorBuilder> builders = ExtensionLoader.getExtensionLoader(InvocationInterceptorBuilder.class).getActivateExtensions();
         if (CollectionUtils.isEmpty(builders)) {
             return invoker;
@@ -73,6 +96,11 @@ public abstract class AbstractCluster implements Cluster {
     protected abstract <T> AbstractClusterInvoker<T> doJoin(Directory<T> directory) throws RpcException;
 
     static class ClusterFilterInvoker<T> extends AbstractClusterInvoker<T> {
+        /**
+         * 这个可能是一个拦截链
+         * 最终才会调用真正的根据不同Cluster生成的
+         * 不同功能的 ClusterInvoker
+         */
         private ClusterInvoker<T> filterInvoker;
 
         public ClusterFilterInvoker(AbstractClusterInvoker<T> invoker) {
@@ -81,6 +109,10 @@ public abstract class AbstractCluster implements Cluster {
                 filterInvoker = invoker;
             } else {
                 ClusterInvoker<T> tmpInvoker = invoker;
+                /**
+                 * 构建消费端的过滤链
+                 * @see org.apache.dubbo.rpc.cluster.filter.DefaultFilterChainBuilder#buildClusterInvokerChain(ClusterInvoker, String, String)
+                 */
                 for (FilterChainBuilder builder : builders) {
                     tmpInvoker = builder.buildClusterInvokerChain(tmpInvoker, REFERENCE_FILTER_KEY, CommonConstants.CONSUMER);
                 }
@@ -91,6 +123,7 @@ public abstract class AbstractCluster implements Cluster {
         @Override
         public Result invoke(Invocation invocation) throws RpcException {
             /**
+             * 开始调用拦截器链中的各个过滤器
              * @see FilterChainBuilder.FilterChainNode#invoke(Invocation)
              */
             return filterInvoker.invoke(invocation);

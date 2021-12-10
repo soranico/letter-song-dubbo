@@ -93,6 +93,7 @@ public class HeaderExchangeClient implements ExchangeClient {
     @Override
     public CompletableFuture<Object> request(Object request, int timeout, ExecutorService executor) throws RemotingException {
         /**
+         * 默认是这个里面封装了真实通信的channel
          * @see HeaderExchangeChannel#request(Object, int, ExecutorService)
          */
         return channel.request(request, timeout, executor);

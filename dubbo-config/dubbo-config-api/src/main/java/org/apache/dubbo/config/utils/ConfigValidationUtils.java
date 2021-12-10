@@ -116,7 +116,7 @@ public class ConfigValidationUtils {
         List<URL> registryList = new ArrayList<URL>();
         ApplicationConfig application = interfaceConfig.getApplication();
         /**
-         * 当前服务需要注册的注册配置
+         * 当前服务需要注册的注册中心的配置
          */
         List<RegistryConfig> registries = interfaceConfig.getRegistries();
         if (CollectionUtils.isNotEmpty(registries)) {

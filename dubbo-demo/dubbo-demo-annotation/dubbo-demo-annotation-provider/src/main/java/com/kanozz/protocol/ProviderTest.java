@@ -34,6 +34,7 @@ public class ProviderTest {
         ProtocolConfig protocolConfig = new ProtocolConfig();
         protocolConfig.setName("dubbo");
 
+
         // 服务的配置
         ServiceConfig<KanoService> serviceConfig = new ServiceConfig<>();
         serviceConfig.setRegistry(registryConfig);
@@ -101,15 +102,19 @@ public class ProviderTest {
 
 
     @Test
-    public  void startWithBootstrap() {
+    public  void providerWithBootstrap() {
         ServiceConfig<KanoServiceImpl> service = new ServiceConfig<>();
         service.setInterface(KanoService.class);
         service.setRef(new KanoServiceImpl());
+
+        ProtocolConfig protocolConfig = ProtocolBuilder.newBuilder().host("192.168.96.159")
+            .port(9090).name("dubbo").build();
 
         DubboBootstrap bootstrap = DubboBootstrap.getInstance();
         bootstrap.application(new ApplicationConfig("kano-provider"))
             .registry(new RegistryConfig("zookeeper://127.0.0.1:2181"))
             .service(service)
+            .protocol(protocolConfig)
             .start()
             .await();
     }

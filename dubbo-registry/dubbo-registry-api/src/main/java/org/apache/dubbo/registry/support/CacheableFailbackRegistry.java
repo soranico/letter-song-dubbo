@@ -162,7 +162,7 @@ public abstract class CacheableFailbackRegistry extends FailbackRegistry {
             }
         }
 
-        evictURLCache(consumer);
+        evictURLCache(consumer);/**消费者URL和提供者URL进行关联 */
         stringUrls.put(consumer, newURLs);
 
         return new ArrayList<>(newURLs.values());

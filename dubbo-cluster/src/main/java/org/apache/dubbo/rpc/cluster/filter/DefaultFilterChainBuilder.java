@@ -60,6 +60,8 @@ public class DefaultFilterChainBuilder implements FilterChainBuilder {
     @Override
     public <T> ClusterInvoker<T> buildClusterInvokerChain(final ClusterInvoker<T> originalInvoker, String key, String group) {
         ClusterInvoker<T> last = originalInvoker;
+
+        /** 获取对当前URL生效并且指定分组的过滤器 */
         List<ClusterFilter> filters = ExtensionLoader.getExtensionLoader(ClusterFilter.class).getActivateExtension(originalInvoker.getUrl(), key, group);
 
         if (!filters.isEmpty()) {
@@ -69,7 +71,7 @@ public class DefaultFilterChainBuilder implements FilterChainBuilder {
                 last = new ClusterFilterChainNode<>(originalInvoker, next, filter);
             }
         }
-
+        /**@see org.apache.dubbo.rpc.cluster.support.FailoverClusterInvoker 构成一个链表最后调用的是原始的Invoker */
         return last;
     }
 

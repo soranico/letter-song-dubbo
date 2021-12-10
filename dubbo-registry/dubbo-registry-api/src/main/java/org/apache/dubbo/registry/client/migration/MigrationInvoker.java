@@ -50,17 +50,38 @@ import static org.apache.dubbo.rpc.cluster.Constants.REFER_KEY;
 
 public class MigrationInvoker<T> implements MigrationClusterInvoker<T> {
     private Logger logger = LoggerFactory.getLogger(MigrationInvoker.class);
-
+    /** 注册中心的URL */
     private URL url;
     private URL consumerUrl;
+    /**
+     * 执行Invoker的策略
+     * 不同的cluster有不同的功能
+     * 默认的为带重试的
+     * @see org.apache.dubbo.rpc.cluster.support.FailoverCluster
+     */
     private Cluster cluster;
+    /**
+     * @see org.apache.dubbo.registry.ListenerRegistryWrapper
+     * 里面是注册中心的协议
+     * @see org.apache.dubbo.registry.zookeeper.ZookeeperRegistry
+     */
     private Registry registry;
+    /** 提供者接口 */
     private Class<T> type;
+    /**
+     * 注册的协议类型
+     */
     private RegistryProtocol registryProtocol;
     private MigrationRuleListener migrationRuleListener;
-
+    /**
+     * 真正执行调用请求的Invoker
+     * 这个是一个过滤器链式的调用
+     */
     private volatile ClusterInvoker<T> invoker;
     private volatile ClusterInvoker<T> serviceDiscoveryInvoker;
+    /**
+     * 当前可用的Invoker
+     */
     private volatile ClusterInvoker<T> currentAvailableInvoker;
     private volatile MigrationStep step;
     private volatile MigrationRule rule;
@@ -236,7 +257,12 @@ public class MigrationInvoker<T> implements MigrationClusterInvoker<T> {
     @Override
     public void migrateToApplicationFirstInvoker(MigrationRule newRule) {
         CountDownLatch latch = new CountDownLatch(0);
+        /**
+         * 刷新接口的 invoker,进行节点的注册和服务列表的刷新
+         * @see MigrationInvoker#refreshInterfaceInvoker(CountDownLatch)
+         */
         refreshInterfaceInvoker(latch);
+
         refreshServiceDiscoveryInvoker(latch);
 
         // directly calculate preferred invoker, will not wait until address notify
@@ -266,6 +292,9 @@ public class MigrationInvoker<T> implements MigrationClusterInvoker<T> {
 
     @Override
     public Result invoke(Invocation invocation) throws RpcException {
+        /**
+         * 当前存在可以使用的Invoker
+         */
         if (currentAvailableInvoker != null) {
             if (step == APPLICATION_FIRST) {
                 // call ratio calculation based on random value
@@ -274,6 +303,7 @@ public class MigrationInvoker<T> implements MigrationClusterInvoker<T> {
                 }
             }
             /**
+             * 一般会走这里调用带有 Mock 功能的Invoker
              * @see org.apache.dubbo.rpc.cluster.support.wrapper.MockClusterInvoker#invoke(Invocation)
              */
             return currentAvailableInvoker.invoke(invocation);
@@ -424,7 +454,7 @@ public class MigrationInvoker<T> implements MigrationClusterInvoker<T> {
 
             if (serviceDiscoveryInvoker != null) {
                 serviceDiscoveryInvoker.destroy();
-            }
+            }/**@see org.apache.dubbo.registry.integration.InterfaceCompatibleRegistryProtocol#getServiceDiscoveryInvoker(Cluster, Registry, Class, URL)  */
             serviceDiscoveryInvoker = registryProtocol.getServiceDiscoveryInvoker(cluster, registry, type, url);
         }
         setListener(serviceDiscoveryInvoker, () -> {
@@ -439,15 +469,26 @@ public class MigrationInvoker<T> implements MigrationClusterInvoker<T> {
     }
 
     protected void refreshInterfaceInvoker(CountDownLatch latch) {
+        /**
+         * 清空监听器
+         */
         clearListener(invoker);
+
         if (needRefresh(invoker)) {
             if (logger.isDebugEnabled()) {
                 logger.debug("Re-subscribing interface addresses for interface " + type.getName());
             }
-
+            /**
+             * 销毁之前的
+             */
             if (invoker != null) {
                 invoker.destroy();
             }
+            /**
+             * 创建当前invoker 对于的 directory 在创建 directory的时候会进行注册
+             * 对应的category目录的监听,同时会刷新接口对应的服务列表
+             * @see org.apache.dubbo.registry.integration.InterfaceCompatibleRegistryProtocol#getInvoker(Cluster, Registry, Class, URL)
+             */
             invoker = registryProtocol.getInvoker(cluster, registry, type, url);
         }
         setListener(invoker, () -> {
@@ -503,7 +544,7 @@ public class MigrationInvoker<T> implements MigrationClusterInvoker<T> {
             return;
         }
         DynamicDirectory<T> directory = (DynamicDirectory<T>) invoker.getDirectory();
-        directory.setInvokersChangedListener(listener);
+        directory.setInvokersChangedListener(listener);/**@see org.apache.dubbo.registry.integration.RegistryDirectory#setInvokersChangedListener(InvokersChangedListener)  设置Invoker变化监听 */
     }
 
     private boolean needRefresh(ClusterInvoker<T> invoker) {

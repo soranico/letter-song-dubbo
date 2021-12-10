@@ -55,8 +55,9 @@ public interface Cluster {
             name = Cluster.DEFAULT;
         }
         /**
+         * 会被warp包装
          * @see org.apache.dubbo.rpc.cluster.support.wrapper.MockClusterWrapper
-         * 里面是
+         * 默认返回的是里面是带重试功能的
          * @see org.apache.dubbo.rpc.cluster.support.FailoverCluster
          */
         return ExtensionLoader.getExtensionLoader(Cluster.class).getExtension(name, wrap);

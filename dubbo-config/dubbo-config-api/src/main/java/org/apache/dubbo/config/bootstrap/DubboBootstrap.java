@@ -429,6 +429,15 @@ public class DubboBootstrap {
 
     public DubboBootstrap reference(ReferenceConfig<?> referenceConfig) {
         referenceConfig.setBootstrap(this);
+        /**
+         * 对于同个接口的消费者,如果有不同的配置
+         * 那么需要设置不同的 组 或者版本
+         * 因为在构建调用的Invoker的时候 使用的是
+         * 组/接口:版本 来区分的,如果有参数不同的话,那么必须要一个唯一的区分
+         * @see ReferenceConfig#get() 添加
+         *
+         *
+         */
         configManager.addReference(referenceConfig);
         return this;
     }
@@ -1475,7 +1484,8 @@ public class DubboBootstrap {
             cache = ReferenceConfigCache.getCache();
         }
         /**
-         * 迭代每个消费者进行注册
+         * 迭代每个消费者进行服务的引用
+         * @see ConfigManager#getReferences()
          */
         configManager.getReferences().forEach(rc -> {
             // TODO, compatible with  ReferenceConfig.refer()
@@ -1499,7 +1509,7 @@ public class DubboBootstrap {
                     asyncReferringFutures.add(future);
                 } else {
                     /**
-                     * 进行
+                     * 真正执行服务的引用
                      * @see ReferenceConfigCache#get(ReferenceConfigBase)
                      */
                     cache.get(rc);

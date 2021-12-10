@@ -63,7 +63,15 @@ public class HeartbeatHandler extends AbstractChannelHandlerDelegate {
 
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
+        /**
+         * 更新channel的读取时间
+         * @see org.apache.dubbo.remoting.transport.netty4.NettyChannel#setAttribute(java.lang.String, java.lang.Object)
+         */
         setReadTimestamp(channel);
+        /**
+         * 当前是客户端的心跳请求
+         * 那么需要进行心跳响应
+         */
         if (isHeartbeatRequest(message)) {
             Request req = (Request) message;
             if (req.isTwoWay()) {
@@ -81,12 +89,19 @@ public class HeartbeatHandler extends AbstractChannelHandlerDelegate {
             }
             return;
         }
+        /**
+         * 客户端的心跳响应
+         */
         if (isHeartbeatResponse(message)) {
             if (logger.isDebugEnabled()) {
                 logger.debug("Receive heartbeat response in thread " + Thread.currentThread().getName());
             }
             return;
         }
+        /**
+         * 如果提供者的URL中注册的时候没有指定,那么这个默认就是 all
+         * @see org.apache.dubbo.remoting.transport.dispatcher.all.AllChannelHandler#received(Channel, Object)
+         */
         handler.received(channel, message);
     }
 

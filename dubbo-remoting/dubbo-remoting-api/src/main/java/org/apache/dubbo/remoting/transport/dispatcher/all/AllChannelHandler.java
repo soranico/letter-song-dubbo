@@ -57,6 +57,11 @@ public class AllChannelHandler extends WrappedChannelHandler {
 
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
+        /**
+         * 获取执行的线程池
+         * 最终调用 run方法来处理请求
+         * @see ChannelEventRunnable#run()
+         */
         ExecutorService executor = getPreferredExecutorService(message);
         try {
             executor.execute(new ChannelEventRunnable(channel, handler, ChannelState.RECEIVED, message));

@@ -46,6 +46,9 @@ public class NettyServerHandler extends ChannelDuplexHandler {
 
     private final URL url;
 
+    /**
+     * 这个 Handler 是内部真正处理业务的 handler
+     */
     private final ChannelHandler handler;
 
     public NettyServerHandler(URL url, ChannelHandler handler) {
@@ -93,6 +96,10 @@ public class NettyServerHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        /**
+         * 获取和客户端用于通信的连接
+         * @see NettyChannel#getOrAddChannel(io.netty.channel.Channel, URL, ChannelHandler) 获取内部的channel
+         */
         NettyChannel channel = NettyChannel.getOrAddChannel(ctx.channel(), url, handler);
         /**
          * 在接收到消息的时候最终委托给真实的处理handler

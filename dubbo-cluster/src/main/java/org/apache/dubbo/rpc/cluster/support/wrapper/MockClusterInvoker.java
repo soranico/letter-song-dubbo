@@ -42,6 +42,10 @@ public class MockClusterInvoker<T> implements ClusterInvoker<T> {
 
     private final Directory<T> directory;
 
+    /**
+     * 这个Invoker 是通过 warp创建的时候设置的
+     * @see MockClusterWrapper#join(org.apache.dubbo.rpc.cluster.Directory)
+     */
     private final Invoker<T> invoker;
 
     public MockClusterInvoker(Directory<T> directory, Invoker<T> invoker) {
@@ -86,21 +90,38 @@ public class MockClusterInvoker<T> implements ClusterInvoker<T> {
     @Override
     public Result invoke(Invocation invocation) throws RpcException {
         Result result = null;
-
+        /**
+         * 首先获取消费者有没有配置mock 属性
+         * 如果配置了那么需要先执行mock 的业务逻辑
+          */    
         String value = getUrl().getMethodParameter(invocation.getMethodName(), MOCK_KEY, Boolean.FALSE.toString()).trim();
         if (value.length() == 0 || "false".equalsIgnoreCase(value)) {
             //no mock
             /**
+             * 如果没有自定义的,此时这个对象
              * @see org.apache.dubbo.rpc.cluster.support.wrapper.AbstractCluster.ClusterFilterInvoker#invoke(Invocation) 
              */
             result = this.invoker.invoke(invocation);
-        } else if (value.startsWith("force")) {
+        }
+        /**
+         * 这种事强制mock 不会执行请求
+         * 将配置的 值进行返回
+         * force: return kano 
+         * @see MockClusterInvoker#doMockInvoke(Invocation, RpcException) 
+         */
+        else if (value.startsWith("force")) {
             if (logger.isWarnEnabled()) {
                 logger.warn("force-mock: " + invocation.getMethodName() + " force-mock enabled , url : " + getUrl());
             }
             //force:direct mock
             result = doMockInvoke(invocation, null);
-        } else {
+        }
+        /**
+         * 不是强制 mock 的话那么会首先进行服务的调用
+         * 如果服务调用失败的话,那么好会执行mock 的降级操作
+         * 这种情况只会处理 RPC异常（服务调用异常）
+         */
+        else {
             //fail-mock
             try {
                 result = this.invoker.invoke(invocation);

@@ -319,14 +319,25 @@ public abstract class FailbackRegistry extends AbstractRegistry {
 
     @Override
     public void subscribe(URL url, NotifyListener listener) {
+        /**
+         * 调用父类添加到URL对应的监听集合中
+         * @see AbstractRegistry#subscribe(URL, NotifyListener)
+         */
         super.subscribe(url, listener);
         removeFailedSubscribed(url, listener);
         try {
             // Sending a subscription request to the server side
+            /**
+             * @see org.apache.dubbo.registry.zookeeper.ZookeeperRegistry#doSubscribe(org.apache.dubbo.common.URL, org.apache.dubbo.registry.NotifyListener)
+             * 子类执行真正的订阅逻辑
+             */
             doSubscribe(url, listener);
         } catch (Exception e) {
             Throwable t = e;
-
+            /**
+             * 如果订阅失败的话,那么久使用本地文件缓存数据
+             * @see AbstractRegistry#getCacheUrls(URL) 
+             */
             List<URL> urls = getCacheUrls(url);
             if (CollectionUtils.isNotEmpty(urls)) {
                 notify(url, listener, urls);
@@ -388,6 +399,9 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             throw new IllegalArgumentException("notify listener == null");
         }
         try {
+            /**
+             * @see FailbackRegistry#doNotify(URL, NotifyListener, List) 
+             */
             doNotify(url, listener, urls);
         } catch (Exception t) {
             // Record a failed registration request to a failed list
@@ -396,6 +410,10 @@ public abstract class FailbackRegistry extends AbstractRegistry {
     }
 
     protected void doNotify(URL url, NotifyListener listener, List<URL> urls) {
+        /**
+         * 执行触发逻辑
+         * @see AbstractRegistry#notify(URL, NotifyListener, List)
+         */
         super.notify(url, listener, urls);
     }
 

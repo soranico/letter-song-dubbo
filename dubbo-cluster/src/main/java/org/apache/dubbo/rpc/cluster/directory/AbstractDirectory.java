@@ -49,10 +49,17 @@ public abstract class AbstractDirectory<T> implements Directory<T> {
     // logger
     private static final Logger logger = LoggerFactory.getLogger(AbstractDirectory.class);
 
+    /**
+     * 这个是注册中心的URL
+     * 并且去除了 refer 和监控 属性
+     */
     private final URL url;
 
     private volatile boolean destroyed = false;
 
+    /**
+     * 消费者的URL
+     */
     protected volatile URL consumerUrl;
 
     protected RouterChain<T> routerChain;

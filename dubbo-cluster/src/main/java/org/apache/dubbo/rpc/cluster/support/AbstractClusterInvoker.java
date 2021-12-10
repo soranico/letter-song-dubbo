@@ -124,7 +124,7 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
      * b) Reselection, the validation rule for reselection: selected > available. This rule guarantees that
      * the selected invoker has the minimum chance to be one in the previously selected list, and also
      * guarantees this invoker is available.
-     *
+     * 根据负载均衡策略完成一个Invoker 的选择
      * @param loadbalance load balance policy
      * @param invocation  invocation
      * @param invokers    invoker candidates
@@ -134,6 +134,7 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
      */
     protected Invoker<T> select(LoadBalance loadbalance, Invocation invocation,
                                 List<Invoker<T>> invokers, List<Invoker<T>> selected) throws RpcException {
+
 
         if (CollectionUtils.isEmpty(invokers)) {
             return null;

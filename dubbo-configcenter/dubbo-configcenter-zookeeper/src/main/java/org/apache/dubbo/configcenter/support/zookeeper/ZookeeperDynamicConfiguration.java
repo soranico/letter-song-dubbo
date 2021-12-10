@@ -23,6 +23,7 @@ import org.apache.dubbo.common.config.configcenter.TreePathDynamicConfiguration;
 import org.apache.dubbo.common.threadpool.support.AbortPolicyWithReport;
 import org.apache.dubbo.common.utils.CollectionUtils;
 import org.apache.dubbo.common.utils.NamedThreadFactory;
+import org.apache.dubbo.remoting.zookeeper.EventType;
 import org.apache.dubbo.remoting.zookeeper.ZookeeperClient;
 import org.apache.dubbo.remoting.zookeeper.ZookeeperTransporter;
 
@@ -131,7 +132,7 @@ public class ZookeeperDynamicConfiguration extends TreePathDynamicConfiguration 
 
     @Override
     protected void doAddListener(String pathKey, ConfigurationListener listener) {
-        cacheListener.addListener(pathKey, listener);
+        cacheListener.addListener(pathKey, listener);/**@see CacheListener#dataChanged(String, Object, EventType)  添加到zk时间响应处理中,当发生订阅的路径发生修改会触发这个通知 */
         zkClient.addDataListener(pathKey, cacheListener, executor);
     }
 

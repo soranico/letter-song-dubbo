@@ -275,12 +275,17 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
         map.put(SIDE_KEY, CONSUMER_SIDE);
 
         ReferenceConfigBase.appendRuntimeParameters(map);
+        /**
+         * 如果不是
+         * @see GenericService 接口
+         */
         if (!ProtocolUtils.isGeneric(generic)) {
             String revision = Version.getVersion(interfaceClass, version);
             if (revision != null && revision.length() > 0) {
                 map.put(REVISION_KEY, revision);
             }
             /**
+             * 返回接口中的方法名
              * @see ReferenceConfig#methods(Class) 生成调用者的 Warp 代理
              */
             String[] methods = methods(interfaceClass);
@@ -333,8 +338,14 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
         map.put(REGISTER_IP_KEY, hostToRegistry);
 
         serviceMetadata.getAttachments().putAll(map);
+
+
         /**
-         * 生成调用者的代理对象
+         * 上面相当于会合并配置参数
+         * 从 app - module - protocol - reference
+         * 参数级别依次升高,后面的配置会覆盖前面的配置
+         *
+         * 参数合并完毕后就可以生成代理对象了
          * @see ReferenceConfig#createProxy(Map)
          */
         ref = createProxy(map);
@@ -354,6 +365,8 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
     private T createProxy(Map<String, String> map) {
         /**
          * 同个jvm调用
+         * 那么久相当于本地调用
+         * 此时就没有必要去注册中心获取以及建立通信的连接
          */
         if (shouldJvmRefer(map)) {
             URL url = new ServiceConfigURL(LOCAL_PROTOCOL, LOCALHOST_VALUE, 0, interfaceClass.getName()).addParameters(map);
@@ -363,6 +376,12 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
             }
         } else {
             urls.clear();
+            /**
+             * 如果配置了URL
+             * 那么这个URL可能是提供者的URL 此时是点对点直连
+             *
+             * 也可能是 注册中心的URL,那么需要去注册中心获取提供者的URL
+             */
             if (url != null && url.length() > 0) { // user specified URL, could be peer-to-peer address, or register center's address.
                 String[] us = SEMICOLON_SPLIT_PATTERN.split(url);
                 if (us != null && us.length > 0) {
@@ -371,26 +390,53 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
                         if (StringUtils.isEmpty(url.getPath())) {
                             url = url.setPath(interfaceName);
                         }
+                        /**
+                         * 如果是注册的URL
+                         */
                         if (UrlUtils.isRegistry(url)) {
                             urls.add(url.putAttribute(REFER_KEY, map));
-                        } else {
+                        }
+                        /**
+                         * 点对点的URL
+                         * 这种不会走注册中心去获取
+                         * 因为本身就是一个可以直接使用的提供者的地址
+                         */
+                        else {
                             URL peerURL = ClusterUtils.mergeUrl(url, map);
                             peerURL = peerURL.putAttribute(PEER_KEY, true);
                             urls.add(peerURL);
                         }
                     }
                 }
-            } else { // assemble URL from register center's configuration
+            } else {
+                // assemble URL from register center's configuration
                 // if protocols not injvm checkRegistry
+                /**
+                 *
+                 */
                 if (!LOCAL_PROTOCOL.equalsIgnoreCase(getProtocol())) {
                     checkRegistry();
+                    /**
+                     * 获取注册中心的地址
+                     */
                     List<URL> us = ConfigValidationUtils.loadRegistries(this, false);
                     if (CollectionUtils.isNotEmpty(us)) {
                         for (URL u : us) {
+                            /**
+                             * TODO monitor监控配置
+                             */
                             URL monitorUrl = ConfigValidationUtils.loadMonitor(this, u);
                             if (monitorUrl != null) {
                                 u = u.putAttribute(MONITOR_KEY, monitorUrl);
                             }
+                            /**
+                             * 把需要注册的消费者的配置
+                             * 设置为注册协议的一个属性
+                             * 这个和服务提供者暴露的时候是一样的
+                             * 都是设置属性值
+                             * 提供者 export
+                             * 消费之 ref
+                             */
                             urls.add(u.putAttribute(REFER_KEY, map));
                         }
                     }
@@ -409,12 +455,20 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
              * 此时是注册协议
              * @see org.apache.dubbo.rpc.Protocol$Adaptive#refer(Class, URL)
              *
-             * 此时返回的是
+             * 最终此时返回的是,这个对象里面封装了调用锁需要的Invoker和调用策略的Cluster
+             * @see org.apache.dubbo.registry.client.migration.MigrationInvoker
+             *
+             * 服务发现协议最终返回的是
              * @see org.apache.dubbo.registry.client.migration.ServiceDiscoveryMigrationInvoker
              */
             if (urls.size() == 1) {
                 invoker = REF_PROTOCOL.refer(interfaceClass, urls.get(0));
-            } else {
+            }
+            /**
+             * 这种情况就是多注册中心了
+             * TODO
+             */
+            else {
                 List<Invoker<?>> invokers = new ArrayList<Invoker<?>>();
                 URL registryURL = null;
                 for (URL url : urls) {
@@ -446,7 +500,10 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
         if (logger.isInfoEnabled()) {
             logger.info("Referred dubbo service " + interfaceClass.getName());
         }
-
+        /**
+         * 转为 consumer 协议
+         * TODO
+         */
         URL consumerURL = new ServiceConfigURL(CONSUMER_PROTOCOL, map.get(REGISTER_IP_KEY), 0, map.get(INTERFACE_KEY), map);
         MetadataUtils.publishServiceDefinition(consumerURL);
 

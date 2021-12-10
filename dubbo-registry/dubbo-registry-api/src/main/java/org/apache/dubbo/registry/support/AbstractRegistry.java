@@ -77,16 +77,33 @@ public abstract class AbstractRegistry implements Registry {
     // Log output
     protected final Logger logger = LoggerFactory.getLogger(getClass());
     // Local disk cache, where the special key value.registries records the list of registry centers, and the others are the list of notified service providers
+    /**
+     * registries -> 注册中心的地址
+     * 其余记录了服务提供者的地址
+     */
     private final Properties properties = new Properties();
     // File cache timing writing
     private final ExecutorService registryCacheExecutor = Executors.newFixedThreadPool(1, new NamedThreadFactory("DubboSaveRegistryCache", true));
     // Is it synchronized to save the file
     private boolean syncSaveFile;
+    /**
+     * 避免老版本覆盖新版本的文件
+     */
     private final AtomicLong lastCacheChanged = new AtomicLong();
     private final AtomicInteger savePropertiesRetryTimes = new AtomicInteger();
     private final Set<URL> registered = new ConcurrentHashSet<>();
+    /**
+     * URL订阅的监听器集合
+     */
     private final ConcurrentMap<URL, Set<NotifyListener>> subscribed = new ConcurrentHashMap<>();
+    /**
+     * 消费者URL被通知的某个类型的对用的URL集合
+     * 比如 provider -> 对应的集合
+     */
     private final ConcurrentMap<URL, Map<String, List<URL>>> notified = new ConcurrentHashMap<>();
+    /**
+     * 注册中心的URL
+     */
     private URL registryUrl;
     // Local disk cache file
     private File file;
@@ -112,7 +129,14 @@ public abstract class AbstractRegistry implements Registry {
             this.file = file;
             // When starting the subscription center,
             // we need to read the local cache file for future Registry fault tolerance processing.
+            /**
+             * 读取缓存文件中的配置
+             */
             loadProperties();
+            /**
+             * 通知配置刷新
+             * @see AbstractRegistry#notify(List)
+             */
             notify(url.getBackupUrls());
         }
     }
@@ -163,6 +187,10 @@ public abstract class AbstractRegistry implements Registry {
     }
 
     public void doSaveProperties(long version) {
+        /**
+         * 说明已经有更新的数据写入了
+         * 那么当前数据就没有必要再次保存
+         */
         if (version < lastCacheChanged.get()) {
             return;
         }
@@ -316,7 +344,14 @@ public abstract class AbstractRegistry implements Registry {
         if (logger.isInfoEnabled()) {
             logger.info("Subscribe: " + url);
         }
+        /**
+         * 当前URL的订阅监听集合
+         */
         Set<NotifyListener> listeners = subscribed.computeIfAbsent(url, n -> new ConcurrentHashSet<>());
+        /**
+         * 将当前URL对应的 Listener添加到订阅监听集合中
+         * @see org.apache.dubbo.registry.integration.RegistryDirectory
+         */
         listeners.add(listener);
     }
 
@@ -340,6 +375,9 @@ public abstract class AbstractRegistry implements Registry {
         notified.remove(url);
     }
 
+    /**
+     * 和注册中心断开后重新连接会调用这个方法
+     */
     protected void recover() throws Exception {
         // register
         Set<URL> recoverRegistered = new HashSet<>(getRegistered());
@@ -415,6 +453,8 @@ public abstract class AbstractRegistry implements Registry {
         }
         // keep every provider's category.
         Map<String, List<URL>> result = new HashMap<>();
+
+        /** 按照具体的category进行分组 */
         for (URL u : urls) {
             if (UrlUtils.isMatch(url, u)) {
                 String category = u.getCategory(DEFAULT_CATEGORY);
@@ -425,14 +465,25 @@ public abstract class AbstractRegistry implements Registry {
         if (result.size() == 0) {
             return;
         }
+
+        /**当前URL对应的每个category路径对应的URL */
         Map<String, List<URL>> categoryNotified = notified.computeIfAbsent(url, u -> new ConcurrentHashMap<>());
+
         for (Map.Entry<String, List<URL>> entry : result.entrySet()) {
             String category = entry.getKey();
             List<URL> categoryList = entry.getValue();
             categoryNotified.put(category, categoryList);
+            /**
+             * @see org.apache.dubbo.registry.integration.RegistryDirectory#notify(List)
+             * 回调事件的响应,此时因为监听的目录数据发生修改需要修改对应的Invoker
+             * 保证调用的提供者和路由以及配置是最新的
+             */
             listener.notify(categoryList);
             // We will update our cache file after each notification.
             // When our Registry has a subscribe failure due to network jitter, we can return at least the existing cache URL.
+            /**
+             * 将配置写到本地缓存里面
+             */
             if (localCacheEnabled) {
                 saveProperties(url);
             }
@@ -458,6 +509,10 @@ public abstract class AbstractRegistry implements Registry {
                 }
             }
             properties.setProperty(url.getServiceKey(), buf.toString());
+            /**
+             * 当前线程操作的版本
+             * 乐观锁实现
+             */
             long version = lastCacheChanged.incrementAndGet();
             if (syncSaveFile) {
                 doSaveProperties(version);

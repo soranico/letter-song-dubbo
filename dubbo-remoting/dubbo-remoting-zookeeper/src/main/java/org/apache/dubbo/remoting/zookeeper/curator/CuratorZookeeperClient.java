@@ -374,6 +374,9 @@ public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorZooke
             }
 
             if (childListener != null) {
+                /**
+                 * @see org.apache.dubbo.registry.zookeeper.ZookeeperRegistry.RegistryChildListenerImpl#childChanged(java.lang.String, java.util.List)
+                 */
                 childListener.childChanged(path, client.getChildren().usingWatcher(this).forPath(path));
             }
         }

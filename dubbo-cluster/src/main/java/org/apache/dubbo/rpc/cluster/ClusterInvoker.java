@@ -24,6 +24,10 @@ import org.apache.dubbo.rpc.Invoker;
  * <p>
  * A ClusterInvoker holds a group of normal invokers, stored in a Directory, mapping to one Registry.
  * The ClusterInvoker implementation usually provides LB or HA policies, like FailoverClusterInvoker.
+ *
+ * 包含一组普通的invoker 存放在 directory 和 对应唯一的 registry
+ * 通常实现有负载均衡和高可用
+ * @see org.apache.dubbo.rpc.cluster.support.FailoverClusterInvoker
  * <p>
  * In multi-registry subscription scenario, the final ClusterInvoker will referr to several sub ClusterInvokers, with each
  * sub ClusterInvoker representing one Registry. Take ZoneAwareClusterInvoker as an example, it is specially customized for
