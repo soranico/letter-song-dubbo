@@ -176,6 +176,7 @@ public class DefaultFuture extends CompletableFuture<Object> {
             /**
              * 获取当前响应对应的future
              * 这个自增ID在创建 Future的时候就已经设置了
+             * 为null说明已经被处理过了
              */
             DefaultFuture future = FUTURES.remove(response.getId());
             if (future != null) {
@@ -223,6 +224,10 @@ public class DefaultFuture extends CompletableFuture<Object> {
         if (res == null) {
             throw new IllegalStateException("response cannot be null");
         }
+        /**
+         * 正常响应,如果是同步调用此时阻塞的线程会被唤醒
+         *
+         */
         if (res.getStatus() == Response.OK) {
             this.complete(res.getResult());
         } else if (res.getStatus() == Response.CLIENT_TIMEOUT || res.getStatus() == Response.SERVER_TIMEOUT) {

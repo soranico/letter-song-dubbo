@@ -118,7 +118,10 @@ public class InvokerInvocationHandler implements InvocationHandler {
         }
         /**
          * 开始执行调用逻辑
-         * @see org.apache.dubbo.registry.client.migration.MigrationInvoker#invoke(Invocation) 
+         * @see org.apache.dubbo.registry.client.migration.MigrationInvoker#invoke(Invocation)
+         *
+         * dubbo 返回的是 AsyncRpcResult
+         * @see AsyncRpcResult#recreate()
          */
         return invoker.invoke(rpcInvocation).recreate();
     }

@@ -192,7 +192,7 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
          * 这里设置的是 int 最大值
          * 但是不会阻塞那么久因为在发送之前
          * 会设置一个定时任务
-         * @see DefaultFuture#newFuture(org.apache.dubbo.remoting.Channel, org.apache.dubbo.remoting.exchange.Request, int, java.util.concurrent.ExecutorService)
+         * @see DefaultFuture#newFuture(org.apache.dubbo.remoting.Channel, org.apache.dubbo.remoting.exchange.Request, int, java.util.concurrent.ExecutorService) 同步则阻塞等待响应
          */
         waitForResultIfSync(asyncResult, invocation);
 
@@ -282,6 +282,7 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
         // set server context
         /**
          * 设置到TL
+         * @see RpcContext#SERVICE_CONTEXT
          */
         RpcContext.getServiceContext().setFuture(new FutureAdapter<>(asyncResult.getResponseFuture()));
 
@@ -300,6 +301,7 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
              */
             /**
              * TODO get()有性能问题 ?
+             * @see AsyncRpcResult#get(long, TimeUnit) 阻塞获取结果
              */
             asyncResult.get(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {

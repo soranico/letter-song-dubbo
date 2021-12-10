@@ -20,9 +20,14 @@ import org.apache.dubbo.common.utils.Assert;
 import org.apache.dubbo.remoting.Channel;
 import org.apache.dubbo.remoting.ChannelHandler;
 import org.apache.dubbo.remoting.RemotingException;
+import org.apache.dubbo.remoting.transport.dispatcher.ChannelHandlers;
 
 public abstract class AbstractChannelHandlerDelegate implements ChannelHandlerDelegate {
 
+    /**
+     * 多层嵌套,每个Handler 处理不同的功能
+     * @see  ChannelHandlers#wrapInternal(org.apache.dubbo.remoting.ChannelHandler, org.apache.dubbo.common.URL)
+     */
     protected ChannelHandler handler;
 
     protected AbstractChannelHandlerDelegate(ChannelHandler handler) {

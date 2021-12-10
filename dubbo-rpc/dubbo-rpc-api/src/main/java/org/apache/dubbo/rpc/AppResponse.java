@@ -80,6 +80,10 @@ public class AppResponse implements Result {
         if (exception != null) {
             // fix issue#619
             try {
+                /**
+                 * 获取异常栈信息
+                 * 这样抛出异常的时候就可以获取到异常栈的信息
+                 */
                 Object stackTrace = InvokerInvocationHandler.stackTraceField.get(exception);
                 if (stackTrace == null) {
                     exception.setStackTrace(new StackTraceElement[0]);

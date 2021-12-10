@@ -95,10 +95,16 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         if (closed) {
             throw new RemotingException(this.getLocalAddress(), null, "Failed to send message " + message + ", cause: The channel " + this + " is closed!");
         }
+        /**
+         * 是请求或者响应数据那么直接传递
+         * 知道消息被真实的通信channel发送
+         */
         if (message instanceof Request
                 || message instanceof Response
                 || message instanceof String) {
             /**
+             * 调用netty的channel进行发送
+             * 发送是没有注册发送成功监听的
              * @see org.apache.dubbo.remoting.transport.netty4.NettyChannel#send(java.lang.Object, boolean)
              */
             channel.send(message, sent);

@@ -163,7 +163,7 @@ public class DubboProtocol extends AbstractProtocol {
                             + invoker.getUrl()) + " ,invocation is :" + inv);
                     return null;
                 }
-            }
+            }/** 客户端的地址 */
             RpcContext.getServiceContext().setRemoteAddress(channel.getRemoteAddress());
             /**
              * @see org.apache.dubbo.registry.integration.RegistryProtocol.InvokerDelegate#invoke(Invocation)
@@ -287,7 +287,7 @@ public class DubboProtocol extends AbstractProtocol {
             port = channel.getRemoteAddress().getPort();
         }
 
-        //callback
+        //callback 客户端自己的调用此时端口相同
         isCallBackServiceInvoke = isClientSide(channel) && !isStubServiceInvoke;
         if (isCallBackServiceInvoke) {
             path += "." + inv.getObjectAttachments().get(CALLBACK_SERVICE_KEY);

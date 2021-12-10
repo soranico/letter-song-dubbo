@@ -187,7 +187,13 @@ public class AsyncRpcResult implements Result {
         if (InvokeMode.FUTURE == rpcInvocation.getInvokeMode()) {
             return RpcContext.getClientAttachment().getFuture();
         }
-
+        /**
+         * 同步情况下直接获取响应,此时执行到这里
+         * 肯定已经完成了请求
+         * @see AsyncRpcResult#getAppResponse()
+         * 服务端返回的是一个 AppResponse
+         * @see AppResponse#recreate()
+         */
         return getAppResponse().recreate();
     }
 

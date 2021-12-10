@@ -54,8 +54,8 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
     static void handleResponse(Channel channel, Response response) throws RemotingException {
         if (response != null && !response.isHeartbeat()) {
             /**
-             * 不是心跳包那么对对应的Future设置响应值
-             * @see DefaultFuture#received(Channel, Response) 
+             * 不是心跳包那么对对应的Future设置响应值,此时没有超时
+             * @see DefaultFuture#received(Channel, Response, boolean)
              */
             DefaultFuture.received(channel, response);
         }
@@ -102,6 +102,9 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
              * @see org.apache.dubbo.rpc.protocol.dubbo.DubboProtocol#requestHandler
              */
             CompletionStage<Object> future = handler.reply(channel, msg);
+            /**
+             * 当Future完成的时候进行回调
+             */
             future.whenComplete((appResult, t) -> {
                 try {
                     if (t == null) {
@@ -113,7 +116,7 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
                     }
                     /**
                      * 发送响应数据
-                     * @see HeaderExchangeChannel#send(Object)
+                     * @see HeaderExchangeChannel#send(java.lang.Object, boolean)
                      */
                     channel.send(res);
                 } catch (RemotingException e) {
