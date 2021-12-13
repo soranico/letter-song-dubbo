@@ -58,6 +58,21 @@ public abstract class AbstractLoadBalance implements LoadBalance {
         if (invokers.size() == 1) {
             return invokers.get(0);
         }
+        /**
+         * 加权随机选择的策略
+         * @see RandomLoadBalance#doSelect(List, URL, Invocation)
+         *
+         * 加权轮训 A:3 B:2 AAA BB
+         * @see RoundRobinLoadBalance#doSelect(List, URL, Invocation)
+         *
+         * 最少活跃
+         * @see LeastActiveLoadBalance#doSelect(List, URL, Invocation)
+         *
+         * @see ShortestResponseLoadBalance#doSelect(List, URL, Invocation)
+         *
+         * 一致性hash
+         * @see ConsistentHashLoadBalance#doSelect(List, URL, Invocation)
+         */
         return doSelect(invokers, url, invocation);
     }
 

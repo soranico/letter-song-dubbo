@@ -75,6 +75,9 @@ public class ListenerInvokerWrapper<T> implements Invoker<T> {
 
     @Override
     public Result invoke(Invocation invocation) throws RpcException {
+        /**
+         * @see org.apache.dubbo.rpc.protocol.AbstractInvoker#invoke(Invocation)
+         */
         return invoker.invoke(invocation);
     }
 

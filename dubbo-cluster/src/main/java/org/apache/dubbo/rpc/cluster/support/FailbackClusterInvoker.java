@@ -97,6 +97,10 @@ public class FailbackClusterInvoker<T> extends AbstractClusterInvoker<T> {
         Invoker<T> invoker = null;
         try {
             checkInvokers(invokers, invocation);
+            /**
+             * 进行负载均衡选择
+             * @see AbstractClusterInvoker#select(LoadBalance, Invocation, List, List)
+             */
             invoker = select(loadbalance, invocation, invokers, null);
             return invokeWithContext(invoker, invocation);
         } catch (Throwable e) {

@@ -141,6 +141,9 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
         }
         String methodName = invocation == null ? StringUtils.EMPTY_STRING : invocation.getMethodName();
 
+        /**
+         * 粘性策略 也就是此时调用使用上次的相同 Invoker
+         */
         boolean sticky = invokers.get(0).getUrl()
                 .getMethodParameter(methodName, CLUSTER_STICKY_KEY, DEFAULT_CLUSTER_STICKY);
 
@@ -154,7 +157,10 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
                 return stickyInvoker;
             }
         }
-
+        /**
+         * 进行负载均衡选择
+         * @see AbstractClusterInvoker#doSelect(LoadBalance, Invocation, List, List)
+         */
         Invoker<T> invoker = doSelect(loadbalance, invocation, invokers, selected);
 
         if (sticky) {
@@ -170,9 +176,16 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
         if (CollectionUtils.isEmpty(invokers)) {
             return null;
         }
+        /**
+         * 只有一个提供者那么就没有必要走负载均衡策略
+         */
         if (invokers.size() == 1) {
             return invokers.get(0);
         }
+        /**
+         * 随机策略,从所有的提供者中随机选择一个
+         * @see org.apache.dubbo.rpc.cluster.loadbalance.RandomLoadBalance#select(List, URL, Invocation)
+         */
         Invoker<T> invoker = loadbalance.select(invokers, getUrl(), invocation);
 
         //If the `invoker` is in the  `selected` or invoker is unavailable && availablecheck is true, reselect.
@@ -264,8 +277,23 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
          * @see AbstractClusterInvoker#list(Invocation)
          */
         List<Invoker<T>> invokers = list(invocation);
+        /**
+         * 选择负载均衡的策略
+         * @see AbstractClusterInvoker#initLoadBalance(List, Invocation)
+         * 根据可配置来加载不同的策略,默认是 random
+         * @see org.apache.dubbo.rpc.cluster.loadbalance.RandomLoadBalance
+         */
         LoadBalance loadbalance = initLoadBalance(invokers, invocation);
         RpcUtils.attachInvocationIdIfAsync(getUrl(), invocation);
+        /**
+         * 进行业务调用,调用需要根据负载均衡选择一个Invoker(提供者)
+         * @see AbstractClusterInvoker#doInvoke(Invocation, List, LoadBalance)
+         *
+         * 这一步就是子类重写了,因为不同的cluster 提供不同功能的 Invoker
+         * e.g 默认的是 提供重试功能的 cluster 创建 提供重试的 invoker
+         * @see FailoverCluster#doJoin(Directory)
+         * @see FailoverClusterInvoker#doInvoke(Invocation, List, LoadBalance)
+         */
         return doInvoke(invocation, invokers, loadbalance);
     }
 
@@ -298,6 +326,9 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
         setContext(invoker);
         Result result;
         try {
+            /**
+             * @see org.apache.dubbo.rpc.listener.ListenerInvokerWrapper#invoke(Invocation)
+             */
             result = invoker.invoke(invocation);
         } finally {
             clearContext(invoker);

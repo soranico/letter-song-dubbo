@@ -58,6 +58,9 @@ public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
         List<Invoker<T>> copyInvokers = invokers;
         checkInvokers(copyInvokers, invocation);
         String methodName = RpcUtils.getMethodName(invocation);
+        /**
+         * 重试次数,默认2,也就是会发送3次
+         */
         int len = calculateInvokeTimes(methodName);
         // retry loop.
         RpcException le = null; // last exception.
@@ -89,7 +92,12 @@ public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
                             + le.getMessage(), le);
                 }
                 return result;
-            } catch (RpcException e) {
+            }
+            /**
+             * 如果是业务异常那么就没有必要重试
+             * 直接将异常抛出去
+             */
+            catch (RpcException e) {
                 if (e.isBiz()) { // biz exception.
                     throw e;
                 }
