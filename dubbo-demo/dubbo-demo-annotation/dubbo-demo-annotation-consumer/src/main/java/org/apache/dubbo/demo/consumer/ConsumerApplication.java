@@ -16,16 +16,14 @@
  */
 package org.apache.dubbo.demo.consumer;
 
+import org.apache.dubbo.config.ProtocolConfig;
+import org.apache.dubbo.config.RegistryConfig;
+import org.apache.dubbo.config.bootstrap.builders.ProtocolBuilder;
 import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
-import org.apache.dubbo.demo.DemoService;
 import org.apache.dubbo.demo.consumer.comp.DemoServiceComponent;
+import org.springframework.context.annotation.*;
 
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.PropertySource;
-
-public class Application {
+public class ConsumerApplication {
     /**
      * In order to make sure multicast registry works, need to specify '-Djava.net.preferIPv4Stack=true' before
      * launch the application
@@ -33,7 +31,7 @@ public class Application {
     public static void main(String[] args) {
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(ConsumerConfiguration.class);
         context.start();
-        DemoService service = context.getBean("demoServiceComponent", DemoServiceComponent.class);
+        DemoServiceComponent service = context.getBean("demoServiceComponent", DemoServiceComponent.class);
         String hello = service.sayHello("world");
         System.out.println("result :" + hello);
     }
@@ -43,6 +41,18 @@ public class Application {
     @PropertySource("classpath:/spring/dubbo-consumer.properties")
     @ComponentScan(value = {"org.apache.dubbo.demo.consumer.comp"})
     static class ConsumerConfiguration {
+        @Bean
+        public ProtocolConfig protocolConfig(){
+            return ProtocolBuilder.newBuilder().host("192.168.96.159")
+                .port(9090).name("dubbo").build();
+        }
+
+        @Bean
+        public RegistryConfig registryConfig() {
+            RegistryConfig registryConfig = new RegistryConfig();
+            registryConfig.setAddress("zookeeper://127.0.0.1:2181");
+            return registryConfig;
+        }
 
     }
 }

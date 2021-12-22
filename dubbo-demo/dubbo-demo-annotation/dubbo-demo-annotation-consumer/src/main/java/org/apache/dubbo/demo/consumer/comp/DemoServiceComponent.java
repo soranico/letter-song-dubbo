@@ -18,22 +18,22 @@ package org.apache.dubbo.demo.consumer.comp;
 
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.demo.DemoService;
-
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.CompletableFuture;
 
 @Component("demoServiceComponent")
-public class DemoServiceComponent implements DemoService {
-    @DubboReference
+public class DemoServiceComponent {
+
+    @DubboReference(check = false)
     private DemoService demoService;
 
-    @Override
+//    @Override
     public String sayHello(String name) {
         return demoService.sayHello(name);
     }
 
-    @Override
+//    @Override
     public CompletableFuture<String> sayHelloAsync(String name) {
         return null;
     }

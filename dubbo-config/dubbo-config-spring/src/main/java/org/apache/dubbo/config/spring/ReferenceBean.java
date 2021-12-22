@@ -316,7 +316,13 @@ public class ReferenceBean<T> implements FactoryBean<T>,
 
         //set proxy interfaces
         //see also: org.apache.dubbo.rpc.proxy.AbstractProxyFactory.getProxy(org.apache.dubbo.rpc.Invoker<T>, boolean)
+        /**
+         * spring代理
+         */
         ProxyFactory proxyFactory = new ProxyFactory();
+        /**
+         * 代理的目标对象
+         */
         proxyFactory.setTargetSource(new DubboReferenceLazyInitTargetSource());
         proxyFactory.addInterface(interfaceClass);
         Class<?>[] internalInterfaces = AbstractProxyFactory.getInternalInterfaces();
@@ -332,7 +338,10 @@ public class ReferenceBean<T> implements FactoryBean<T>,
                 // generic call maybe without service interface class locally
             }
         }
-
+        /**
+         * 生成代理类这个时候还是没有建立和注册中心的连接
+         * 也没有生成调用消费者的真实代理类
+         */
         this.lazyProxy = proxyFactory.getProxy(this.beanClassLoader);
     }
 

@@ -16,15 +16,16 @@
  */
 package org.apache.dubbo.demo.provider;
 
+import org.apache.dubbo.config.ProtocolConfig;
 import org.apache.dubbo.config.RegistryConfig;
+import org.apache.dubbo.config.bootstrap.builders.ProtocolBuilder;
 import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
-
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 
-public class Application {
+public class ProducerApplication {
     public static void main(String[] args) throws Exception {
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(ProviderConfiguration.class);
         context.start();
@@ -40,6 +41,11 @@ public class Application {
             RegistryConfig registryConfig = new RegistryConfig();
             registryConfig.setAddress("zookeeper://127.0.0.1:2181");
             return registryConfig;
+        }
+        @Bean
+        public ProtocolConfig protocolConfig(){
+            return ProtocolBuilder.newBuilder().host("192.168.96.159")
+                .port(9090).name("dubbo").build();
         }
     }
 }

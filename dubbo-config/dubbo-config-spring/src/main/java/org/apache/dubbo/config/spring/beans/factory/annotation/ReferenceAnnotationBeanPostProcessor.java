@@ -25,9 +25,9 @@ import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.config.annotation.Reference;
 import org.apache.dubbo.config.context.ConfigManager;
 import org.apache.dubbo.config.spring.Constants;
+import org.apache.dubbo.config.spring.ReferenceBean;
 import org.apache.dubbo.config.spring.context.event.DubboAnnotationInitedEvent;
 import org.apache.dubbo.config.spring.reference.ReferenceAttributes;
-import org.apache.dubbo.config.spring.ReferenceBean;
 import org.apache.dubbo.config.spring.reference.ReferenceBeanManager;
 import org.apache.dubbo.config.spring.reference.ReferenceBeanSupport;
 import org.apache.dubbo.rpc.service.GenericService;
@@ -52,12 +52,7 @@ import org.springframework.core.type.MethodMetadata;
 import java.beans.PropertyDescriptor;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Member;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -120,7 +115,16 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
 
     @Override
     public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
-
+        /**
+         *
+         * spring调用BFPP的时候处理dubbo的注解
+         * @see org.springframework.context.support.PostProcessorRegistrationDelegate#invokeBeanFactoryPostProcessors(org.springframework.beans.factory.config.ConfigurableListableBeanFactory, java.util.List)
+         *
+         * 此时不可能存在创建好的bean 只是构建了dubbo代理的依赖
+         * @see ReferenceBean
+         *
+         *
+         */
         String[] beanNames = beanFactory.getBeanDefinitionNames();
         for (String beanName : beanNames) {
             Class<?> beanType;
@@ -347,7 +351,10 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
 
                 //associate fieldElement and reference bean
                 fieldElement.injectedObject = referenceBeanName;
-                // 缓存注入属性和beanName的关系
+                /**
+                 * 缓存属性和beanName的依赖
+                 * 在后面属性注入的时候此时会
+                 */
                 injectedFieldReferenceBeanCache.put(fieldElement, referenceBeanName);
 
             }
