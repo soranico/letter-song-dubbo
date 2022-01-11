@@ -13,4 +13,9 @@ public class KanoServiceStub implements KanoService{
     public String kano() {
         return null;
     }
+
+    @Override
+    public String kano(String name) {
+        return name;
+    }
 }

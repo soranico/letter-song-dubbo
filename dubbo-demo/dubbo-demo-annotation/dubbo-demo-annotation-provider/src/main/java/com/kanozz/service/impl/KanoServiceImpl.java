@@ -7,4 +7,9 @@ public class KanoServiceImpl implements KanoService {
     public String kano() {
         return "hello how are you";
     }
+
+    @Override
+    public String kano(String name) {
+        return name;
+    }
 }
